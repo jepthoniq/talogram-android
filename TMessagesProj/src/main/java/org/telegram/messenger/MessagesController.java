@@ -21338,7 +21338,7 @@ public class MessagesController extends BaseController implements NotificationCe
             }
         }
         if (deletedMessages != null) {
-            boolean keepDeleted = TalogramSettings.isKeepDeletedMessages();
+            boolean keepDeleted = TalogramSettings.isKeepDeletedMessages() && (!TalogramSubscription.isGateEnabled() || TalogramSubscription.isSubscribedCached());
             for (int a = 0, size = deletedMessages.size(); a < size; a++) {
                 long key = deletedMessages.keyAt(a);
                 ArrayList<Integer> arrayList = deletedMessages.valueAt(a);

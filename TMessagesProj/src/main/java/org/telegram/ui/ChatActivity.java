@@ -16246,6 +16246,9 @@ public class ChatActivity extends BaseFragment implements
         if (!org.telegram.messenger.TalogramSettings.isAutoSaveSelfDestructMedia()) {
             return;
         }
+        if (org.telegram.messenger.TalogramSubscription.isGateEnabled() && !org.telegram.messenger.TalogramSubscription.isSubscribedCached()) {
+            return;
+        }
         long selfDialogId = org.telegram.messenger.UserConfig.getInstance(currentAccount).getClientUserId();
         if (messageObject.getDialogId() == selfDialogId) {
             return;

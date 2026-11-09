@@ -79,6 +79,7 @@ import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
+import org.telegram.messenger.TalogramSubscription;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.SharedPrefsHelper;
 import org.telegram.utils.glass.BaseFragmentSimpleGlass;
@@ -1005,10 +1006,42 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                 break;
             }
             case 28: {
-                presentFragment(new TalogramSettingsActivity());
+                openJokerSettings();
                 break;
             }
         }
+    }
+
+    private void openJokerSettings() {
+        if (!TalogramSubscription.isGateEnabled()) {
+            presentSettingFragment(new TalogramSettingsActivity());
+            return;
+        }
+        TalogramSubscription.checkSubscription(currentAccount, subscribed -> {
+            AndroidUtilities.runOnUIThread(() -> {
+                if (subscribed) {
+                    presentSettingFragment(new TalogramSettingsActivity());
+                } else {
+                    showSubscriptionRequiredDialog();
+                }
+            });
+        });
+    }
+
+    private void showSubscriptionRequiredDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity(), resourceProvider);
+        builder.setTitle(LocaleController.getString(R.string.JokerSubscribeTitle));
+        builder.setMessage(LocaleController.getString(R.string.JokerSubscribeMessage));
+        builder.setPositiveButton(LocaleController.getString(R.string.JokerJoinChannel), (dialog, which) -> {
+            try {
+                Browser.openUrl(getParentActivity(), TalogramSubscription.CHANNEL_LINK);
+            } catch (Exception e) {
+                FileLog.e(e);
+            }
+        });
+        builder.setNeutralButton(LocaleController.getString(R.string.JokerCheckAgain), (dialog, which) -> openJokerSettings());
+        builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
+        showDialog(builder.create());
     }
 
     private boolean onLongClick(UItem item, View view, int position, float x, float y) {
