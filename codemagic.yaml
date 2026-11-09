@@ -2,12 +2,11 @@ workflows:
   talogram-android:
     name: Talogram Android
     max_build_duration: 120
-    instance_type: linux_x2
+    instance_type: mac_mini_m2
     environment:
       vars:
         APP_NAME: Talogram
       java: 17
-      ubuntu: 24.04
     cache:
       cache_paths:
         - ~/.gradle/caches
