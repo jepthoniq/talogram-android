@@ -11678,6 +11678,53 @@
     <string name="FpnvConsentCountry">Country</string>
     <string name="FpnvConsentMccMnc">MCC / MNC</string>
     <string name="FpnvConsentPhoneNumber">Phone Number</string>
+    <!-- Joker / Talogram mod -->
+    <string name="JokerSettings">Joker Settings</string>
+    <string name="JokerSettingsRow">Joker Settings</string>
+    <string name="JokerSettingsRowInfo">Talogram modified version</string>
+    <string name="JokerFeaturesHeader">Joker Features</string>
+    <string name="JokerAutoSaveSelfDestructTitle">Auto Save Self-Destructing Media</string>
+    <string name="JokerAutoSaveSelfDestructText">Automatically save self-destructing photos, videos, and voice messages to Saved Messages when opened.</string>
+    <string name="JokerAllow100AccountsTitle">Allow 100 Accounts</string>
+    <string name="JokerAllow100AccountsText">Allow adding up to 100 accounts in the app.</string>
+    <string name="JokerGhostModeTitle">Ghost Mode</string>
+    <string name="JokerGhostModeText">Hide read receipts with an eye icon at the top of the chat next to the chat title.</string>
+    <string name="JokerForcePremiumTranslationTitle">Force Premium Translation</string>
+    <string name="JokerForcePremiumTranslationText">Enable the Premium translation feature for free in chats and channels.</string>
+    <string name="JokerFreezeLastSeenTitle">Freeze Last Seen</string>
+    <string name="JokerFreezeLastSeenText">Hide your last seen status and stop sending presence updates to the server.</string>
+    <string name="JokerBypassCopyProtectionTitle">Bypass Copy Protection</string>
+    <string name="JokerBypassCopyProtectionText">Bypass copy protection in protected channels: copy captions, save images, and forward the full message (image with caption).</string>
+    <string name="JokerKeepDeletedMessagesTitle">Keep Deleted Messages</string>
+    <string name="JokerKeepDeletedMessagesText">Keep deleted messages locally with an x mark next to the bubble. Clearing history deletes everything permanently.</string>
+    <string name="JokerFreezeStoryViewsTitle">Freeze Story Views</string>
+    <string name="JokerFreezeStoryViewsText">View stories without appearing in the viewers list. Works entirely on your device - no subscription, no Telegram Business.</string>
+    <string name="JokerLocalFeaturesHeader">Local Features</string>
+    <string name="JokerQuickRepliesTitle">Local Quick Replies</string>
+    <string name="JokerQuickRepliesText">Create and manage local quick replies on this device. Not Telegram Business.</string>
+    <string name="JokerSourceCreditsHeader">Source Credits</string>
+    <string name="JokerCreditsText">Talogram Modified Version - Source by @aljokeruserbot</string>
+    <string name="JokerQuickRepliesScreenTitle">Local Quick Replies</string>
+    <string name="JokerQuickReplyNew">New Quick Reply</string>
+    <string name="JokerQuickReplyEdit">Edit Quick Reply</string>
+    <string name="JokerQuickReplyShortcutHint">Shortcut (e.g. hello)</string>
+    <string name="JokerQuickReplyTextHint">Reply text, also used as caption</string>
+    <string name="JokerQuickReplyAttach">Attach media</string>
+    <string name="JokerQuickReplyChangeMedia">Change media</string>
+    <string name="JokerQuickReplyMediaImage">Photo</string>
+    <string name="JokerQuickReplyMediaVideo">Video</string>
+    <string name="JokerQuickReplySave">Save</string>
+    <string name="JokerQuickReplyCancel">Cancel</string>
+    <string name="JokerQuickReplyDelete">Delete</string>
+    <string name="JokerQuickReplyDeleteTitle">Delete Quick Reply</string>
+    <string name="JokerQuickReplyDeleteMessage">This quick reply will be deleted from this device.</string>
+    <string name="JokerQuickReplyEmptyTitle">No quick replies yet</string>
+    <string name="JokerQuickReplyEmptyText">Tap + to create your first quick reply</string>
+    <string name="JokerQuickReplyShortcutRequired">Enter a shortcut without spaces.</string>
+    <string name="JokerQuickReplyTextRequired">Write a reply or attach a photo or video.</string>
+    <string name="JokerQuickReplyShortcutUsed">Shortcut is already in use</string>
+    <string name="JokerQuickReplyMediaTooBig">Media is too large (64 MB max)</string>
+    <string name="JokerStoryMarkViewed">Mark as viewed</string>
 </resources>
 
 
