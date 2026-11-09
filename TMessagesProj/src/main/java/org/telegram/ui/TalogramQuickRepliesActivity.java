@@ -70,7 +70,7 @@ public class TalogramQuickRepliesActivity extends BaseFragment {
         addButton.setBackground(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector), 1));
         addButton.setContentDescription(LocaleController.getString(R.string.JokerQuickReplyNew));
         addButton.setOnClickListener(v -> openEditor(null));
-        simpleActionBar.addView(addButton, LayoutHelper.createFrame(40, 40, Gravity.TOP | Gravity.RIGHT, 0, 2, 8, 0));
+        simpleActionBar.addView(addButton, LayoutHelper.createFrame(40, 40, Gravity.TOP | Gravity.RIGHT, 0, 8, 8, 0));
 
         FrameLayout frameLayout = new FrameLayout(context);
         fragmentView = frameLayout;
@@ -80,7 +80,16 @@ public class TalogramQuickRepliesActivity extends BaseFragment {
         listView.setLayoutManager(new LinearLayoutManager(context));
         listView.setVerticalScrollBarEnabled(false);
         listView.setAdapter(adapter = new QuickReplyAdapter(context));
-        listView.setEmptyView(emptyLayout = createEmptyLayout(context));
+        frameLayout.addView(listView, LayoutHelper.createFrame(
+                LayoutHelper.MATCH_PARENT,
+                LayoutHelper.MATCH_PARENT
+        ));
+        emptyLayout = createEmptyLayout(context);
+        frameLayout.addView(emptyLayout, LayoutHelper.createFrame(
+                LayoutHelper.MATCH_PARENT,
+                LayoutHelper.MATCH_PARENT
+        ));
+        listView.setEmptyView(emptyLayout);
         listView.setOnItemClickListener((view, position) -> {
             TalogramSettings.QuickReply reply = adapter.getItem(position);
             if (reply != null) {
@@ -94,10 +103,6 @@ public class TalogramQuickRepliesActivity extends BaseFragment {
             }
             return true;
         });
-        frameLayout.addView(listView, LayoutHelper.createFrame(
-                LayoutHelper.MATCH_PARENT,
-                LayoutHelper.MATCH_PARENT
-        ));
         refresh();
         return fragmentView;
     }
@@ -116,13 +121,13 @@ public class TalogramQuickRepliesActivity extends BaseFragment {
         TextView title = new TextView(context);
         title.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
         title.setTypeface(AndroidUtilities.bold());
-        title.setTextSize(AndroidUtilities.dp(18));
+        title.setTextSize(18);
         title.setText(LocaleController.getString(R.string.JokerQuickReplyEmptyTitle));
         layout.addView(title, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 16, 0, 0));
 
         TextView subtitle = new TextView(context);
         subtitle.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2));
-        subtitle.setTextSize(AndroidUtilities.dp(14));
+        subtitle.setTextSize(14);
         subtitle.setGravity(Gravity.CENTER);
         subtitle.setText(LocaleController.getString(R.string.JokerQuickReplyEmptyText));
         layout.addView(subtitle, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 6, 0, 0));
@@ -130,7 +135,7 @@ public class TalogramQuickRepliesActivity extends BaseFragment {
         TextView button = new TextView(context);
         button.setTextColor(Theme.getColor(Theme.key_featuredStickers_buttonText));
         button.setTypeface(AndroidUtilities.bold());
-        button.setTextSize(AndroidUtilities.dp(15));
+        button.setTextSize(15);
         button.setGravity(Gravity.CENTER);
         button.setText(LocaleController.getString(R.string.JokerQuickReplyNew));
         button.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(22), Theme.getColor(Theme.key_featuredStickers_addButton)));
@@ -246,7 +251,7 @@ public class TalogramQuickRepliesActivity extends BaseFragment {
 
             shortcutView = new TextView(context);
             shortcutView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
-            shortcutView.setTextSize(AndroidUtilities.dp(16));
+            shortcutView.setTextSize(16);
             shortcutView.setTypeface(AndroidUtilities.bold());
             shortcutView.setSingleLine(true);
             shortcutView.setEllipsize(android.text.TextUtils.TruncateAt.END);
@@ -254,7 +259,7 @@ public class TalogramQuickRepliesActivity extends BaseFragment {
 
             textView = new TextView(context);
             textView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2));
-            textView.setTextSize(AndroidUtilities.dp(13));
+            textView.setTextSize(13);
             textView.setMaxLines(2);
             textView.setEllipsize(android.text.TextUtils.TruncateAt.END);
             textLayout.addView(textView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 2, 0, 0));

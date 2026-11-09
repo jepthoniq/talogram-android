@@ -1364,7 +1364,7 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
                 req.max_id = storyId;
                 org.telegram.tgnet.ConnectionsManager.getInstance(currentAccount).sendRequest(req, null);
                 org.telegram.messenger.NotificationCenter.getInstance(currentAccount).postNotificationName(org.telegram.messenger.NotificationCenter.storiesReadUpdated);
-                eyeIconView.setVisibility(GONE);
+                eyeIconView.setVisibility(View.GONE);
             });
         }
 

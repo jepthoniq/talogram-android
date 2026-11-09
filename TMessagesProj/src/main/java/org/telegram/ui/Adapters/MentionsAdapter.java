@@ -1598,7 +1598,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                 quickReplies = null;
                 talogramQuickReplies = null;
             }
-            {
+            if (parentFragment != null && parentFragment.getChatMode() == 0) {
                 talogramQuickRepliesQuery = command;
                 talogramQuickReplies = new ArrayList<>();
                 for (TalogramSettings.QuickReply reply : TalogramSettings.getQuickReplies()) {
@@ -1607,6 +1607,9 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                         talogramQuickReplies.add(reply);
                     }
                 }
+            } else {
+                talogramQuickRepliesQuery = null;
+                talogramQuickReplies = null;
             }
             searchResultHashtags = null;
             stickers = null;
