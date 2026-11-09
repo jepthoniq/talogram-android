@@ -154,7 +154,7 @@ public class TalogramQuickReplyEditorActivity extends BaseFragment {
 
         TextView slash = new TextView(context);
         slash.setText("/");
-        slash.setTextSize(AndroidUtilities.dp(20));
+        slash.setTextSize(20f);
         slash.setTypeface(AndroidUtilities.bold());
         slash.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
         row.addView(slash, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, 0, 0, 8, 0));
@@ -165,7 +165,7 @@ public class TalogramQuickReplyEditorActivity extends BaseFragment {
         shortcutField.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
         shortcutField.setImeOptions(EditorInfo.IME_ACTION_NEXT);
         shortcutField.setBackground(null);
-        shortcutField.setTextSize(AndroidUtilities.dp(17));
+        shortcutField.setTextSize(17f);
         shortcutField.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
         shortcutField.setHintTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteHintText));
         shortcutField.setFilters(new InputFilter[]{new InputFilter.LengthFilter(64)});
@@ -189,7 +189,7 @@ public class TalogramQuickReplyEditorActivity extends BaseFragment {
         textField.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         textField.setImeOptions(EditorInfo.IME_FLAG_NO_ENTER_ACTION);
         textField.setBackground(null);
-        textField.setTextSize(AndroidUtilities.dp(16));
+        textField.setTextSize(16f);
         textField.setPadding(0, AndroidUtilities.dp(14), 0, AndroidUtilities.dp(14));
         textField.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
         textField.setHintTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteHintText));
@@ -214,7 +214,7 @@ public class TalogramQuickReplyEditorActivity extends BaseFragment {
 
         attachLabel = new TextView(context);
         attachLabel.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
-        attachLabel.setTextSize(AndroidUtilities.dp(16));
+        attachLabel.setTextSize(16f);
         attachLabel.setPadding(AndroidUtilities.dp(14), 0, 0, 0);
         attachLabel.setText(LocaleController.getString(R.string.JokerQuickReplyAttach));
         attachRow.addView(attachLabel, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT));
@@ -241,12 +241,12 @@ public class TalogramQuickReplyEditorActivity extends BaseFragment {
         info.setOrientation(LinearLayout.VERTICAL);
         mediaTypeLabel = new TextView(context);
         mediaTypeLabel.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
-        mediaTypeLabel.setTextSize(AndroidUtilities.dp(16));
+        mediaTypeLabel.setTextSize(16f);
         mediaTypeLabel.setTypeface(AndroidUtilities.bold());
         info.addView(mediaTypeLabel, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT));
         mediaSizeLabel = new TextView(context);
         mediaSizeLabel.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2));
-        mediaSizeLabel.setTextSize(AndroidUtilities.dp(13));
+        mediaSizeLabel.setTextSize(13f);
         info.addView(mediaSizeLabel, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, 0, 4, 0, 0));
         mediaContainer.addView(info, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f));
 
@@ -264,7 +264,7 @@ public class TalogramQuickReplyEditorActivity extends BaseFragment {
     private View buildErrorView(Context context) {
         errorView = new TextView(context);
         errorView.setTextColor(Color.parseColor("#E53935"));
-        errorView.setTextSize(AndroidUtilities.dp(13));
+        errorView.setTextSize(13f);
         errorView.setPadding(0, AndroidUtilities.dp(6), 0, AndroidUtilities.dp(6));
         errorView.setVisibility(View.GONE);
         return errorView;
@@ -279,7 +279,7 @@ public class TalogramQuickReplyEditorActivity extends BaseFragment {
         deleteButton = new TextView(context);
         deleteButton.setText(LocaleController.getString(R.string.JokerQuickReplyDelete));
         deleteButton.setTextColor(Color.parseColor("#E53935"));
-        deleteButton.setTextSize(AndroidUtilities.dp(15));
+        deleteButton.setTextSize(15f);
         deleteButton.setTypeface(AndroidUtilities.bold());
         deleteButton.setGravity(Gravity.CENTER);
         deleteButton.setBackground(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector), 1));
@@ -294,7 +294,7 @@ public class TalogramQuickReplyEditorActivity extends BaseFragment {
         TextView cancel = new TextView(context);
         cancel.setText(LocaleController.getString(R.string.JokerQuickReplyCancel));
         cancel.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
-        cancel.setTextSize(AndroidUtilities.dp(15));
+        cancel.setTextSize(15f);
         cancel.setTypeface(AndroidUtilities.bold());
         cancel.setGravity(Gravity.CENTER);
         cancel.setBackground(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector), 1));
@@ -305,7 +305,7 @@ public class TalogramQuickReplyEditorActivity extends BaseFragment {
         saveButton = new TextView(context);
         saveButton.setText(LocaleController.getString(R.string.JokerQuickReplySave));
         saveButton.setTextColor(Color.WHITE);
-        saveButton.setTextSize(AndroidUtilities.dp(15));
+        saveButton.setTextSize(15f);
         saveButton.setTypeface(AndroidUtilities.bold());
         saveButton.setGravity(Gravity.CENTER);
         saveButton.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(22), Theme.getColor(Theme.key_featuredStickers_addButton)));

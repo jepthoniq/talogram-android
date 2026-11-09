@@ -62,10 +62,8 @@ public class TalogramQuickRepliesLayout extends ChatAttachAlert.AttachAlertLayou
         emptyView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2, resourcesProvider));
         emptyView.setTextSize(14);
         emptyView.setText(LocaleController.getString(R.string.JokerQuickReplyEmptyTitle));
-        container.addView(emptyView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
-
-        listView.setEmptyView(emptyView);
         container.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+        container.addView(emptyView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         addView(container, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, AndroidUtilities.dp(ROW_HEIGHT * 5), Gravity.CENTER));
 
         setWillNotDraw(false);
@@ -78,6 +76,13 @@ public class TalogramQuickRepliesLayout extends ChatAttachAlert.AttachAlertLayou
         }
         adapter.setItems(TalogramSettings.getQuickReplies());
         adapter.notifyDataSetChanged();
+        boolean empty = adapter.getItemCount() == 0;
+        if (emptyView != null) {
+            emptyView.setVisibility(empty ? VISIBLE : GONE);
+        }
+        if (listView != null) {
+            listView.setVisibility(empty ? GONE : VISIBLE);
+        }
     }
 
     @Override

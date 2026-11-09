@@ -1350,7 +1350,7 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
             eyeIconView.setColorFilter(new PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN));
             eyeIconView.setContentDescription(getString(R.string.JokerStoryMarkViewed));
             storyContainer.addView(eyeIconView, LayoutHelper.createFrame(40, 40, Gravity.RIGHT | Gravity.TOP, 2, 15, 2 + 40 + 40, 0));
-            final PeerStory currentStoryFinal = currentStory;
+            final StoryItemHolder currentStoryFinal = currentStory;
             eyeIconView.setOnClickListener(v -> {
                 if (eyeIconView.getVisibility() == View.GONE) {
                     return;
