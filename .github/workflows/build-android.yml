@@ -15,10 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 350
     env:
-      ANDROID_HOME: /usr/local/android-sdk-linux
-      ANDROID_SDK_ROOT: /usr/local/android-sdk-linux
+      ANDROID_HOME: /home/runner/android-sdk
+      ANDROID_SDK_ROOT: /home/runner/android-sdk
       ANDROID_NDK_VERSION: 27.2.12479018
-      ANDROID_NDK_HOME: /usr/local/android-sdk-linux/ndk/27.2.12479018
+      ANDROID_NDK_HOME: /home/runner/android-sdk/ndk/27.2.12479018
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
