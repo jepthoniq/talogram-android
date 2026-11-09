@@ -1,0 +1,45 @@
+workflows:
+  talogram-android:
+    name: Talogram Android
+    max_build_duration: 120
+    instance_type: linux_x2
+    environment:
+      vars:
+        APP_NAME: Talogram
+      java: 17
+      ubuntu: 24.04
+    cache:
+      cache_paths:
+        - ~/.gradle/caches
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: master
+          include: true
+          source: true
+      cancel_previous_builds: true
+    scripts:
+      - name: Fetch git submodules
+        script: |
+          set -e
+          cd $CM_BUILD_DIR
+          git submodule update --init --recursive
+      - name: Install Android SDK, NDK and cmake
+        script: |
+          set -e
+          SDKM="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKM" ]; then SDKM="$(command -v sdkmanager)"; fi
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" --install "platforms;android-36" "build-tools;36.0.0" "platform-tools" "ndk;27.2.12479018" "cmake;3.22.1"
+      - name: Point Gradle at the Android SDK
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
+      - name: Build Talogram (afat release)
+        script: |
+          set -e
+          cd $CM_BUILD_DIR
+          chmod +x gradlew
+          ./gradlew :TMessagesProj_App:assembleAfatRelease --stacktrace
+    artifacts:
+      - TMessagesProj_App/build/outputs/apk/afat/release/*.apk
