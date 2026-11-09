@@ -107,6 +107,42 @@ public final class TalogramSettings {
         return getBoolean(KEY_STORY_FREEZE);
     }
 
+    public static void recordKeptDeletedMessages(long dialogId, List<Integer> messageIds) {
+        if (dialogId == 0 || messageIds == null || messageIds.isEmpty()) {
+            return;
+        }
+        android.content.SharedPreferences p = prefs();
+        if (p == null) {
+            return;
+        }
+        try {
+            String key = "kept_deleted_" + dialogId;
+            JSONArray arr = new JSONArray(p.getString(key, "[]"));
+            for (Integer id : messageIds) {
+                boolean exists = false;
+                for (int i = 0; i < arr.length(); i++) {
+                    if (arr.getInt(i) == id) {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (!exists) {
+                    arr.put(id);
+                }
+            }
+            while (arr.length() > 2000) {
+                JSONArray trimmed = new JSONArray();
+                for (int i = 1; i < arr.length(); i++) {
+                    trimmed.put(arr.get(i));
+                }
+                arr = trimmed;
+            }
+            p.edit().putString(key, arr.toString()).apply();
+        } catch (Exception e) {
+            FileLog.e(e);
+        }
+    }
+
     public static String normalizeShortcut(String value) {
         if (value == null) {
             return "";

@@ -46,6 +46,7 @@ import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
+import org.telegram.messenger.TalogramSettings;
 import org.telegram.messenger.SendMessagesHelper;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserConfig;
@@ -115,6 +116,8 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
     private ArrayList<String> searchResultCommandsHelp;
     private String quickRepliesQuery;
     private ArrayList<QuickRepliesController.QuickReply> quickReplies;
+    private ArrayList<TalogramSettings.QuickReply> talogramQuickReplies;
+    private String talogramQuickRepliesQuery;
     private ArrayList<MediaDataController.KeywordResult> searchResultSuggestions;
     private String[] lastSearchKeyboardLanguage;
     private ArrayList<TLRPC.User> searchResultCommandsUsers;
@@ -894,6 +897,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                 searchResultCommands = null;
                 searchResultCommandsEphemeral = null;
                 quickReplies = null;
+                talogramQuickReplies = null;
                 searchResultSuggestions = null;
                 searchResultCommandsHelp = null;
                 searchResultCommandsUsers = null;
@@ -1455,6 +1459,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             searchResultHashtags = null;
             stickers = null;
             quickReplies = null;
+            talogramQuickReplies = null;
             searchResultCommands = null;
             searchResultCommandsEphemeral = null;
             searchResultCommandsHelp = null;
@@ -1546,6 +1551,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             searchResultUsernames = null;
             searchResultUsernamesMap = null;
             quickReplies = null;
+            talogramQuickReplies = null;
             searchResultCommands = null;
             searchResultCommandsEphemeral = null;
             searchResultCommandsHelp = null;
@@ -1588,7 +1594,19 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                 }
             } else {
                 quickRepliesQuery = null;
+                talogramQuickRepliesQuery = null;
                 quickReplies = null;
+                talogramQuickReplies = null;
+            }
+            {
+                talogramQuickRepliesQuery = command;
+                talogramQuickReplies = new ArrayList<>();
+                for (TalogramSettings.QuickReply reply : TalogramSettings.getQuickReplies()) {
+                    String replyName = reply.shortcut == null ? "" : reply.shortcut.toLowerCase();
+                    if (!replyName.isEmpty() && (replyName.startsWith(command) || AndroidUtilities.translitSafe(replyName).startsWith(command))) {
+                        talogramQuickReplies.add(reply);
+                    }
+                }
             }
             searchResultHashtags = null;
             stickers = null;
@@ -1602,7 +1620,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             contextMedia = false;
             searchResultBotContext = null;
             notifyDataSetChanged();
-            delegate.needChangePanelVisibility(!newResult.isEmpty() || quickReplies != null && !quickReplies.isEmpty());
+            delegate.needChangePanelVisibility(!newResult.isEmpty() || quickReplies != null && !quickReplies.isEmpty() || talogramQuickReplies != null && !talogramQuickReplies.isEmpty());
         } else if (foundType == 3) {
             String[] newLanguage = AndroidUtilities.getCurrentKeyboardLanguage();
             if (!Arrays.equals(newLanguage, lastSearchKeyboardLanguage)) {
@@ -1618,6 +1636,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                 searchResultCommands = null;
                 searchResultCommandsEphemeral = null;
                 quickReplies = null;
+                talogramQuickReplies = null;
                 searchResultCommandsHelp = null;
                 searchResultCommandsUsers = null;
                 notifyDataSetChanged();
@@ -1631,6 +1650,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             searchResultCommands = null;
             searchResultCommandsEphemeral = null;
             quickReplies = null;
+            talogramQuickReplies = null;
             searchResultCommandsHelp = null;
             searchResultCommandsUsers = null;
         }
@@ -1715,8 +1735,8 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             count += searchResultUsernames.size();
         } else if (searchResultHashtags != null) {
             count += searchResultHashtags.size();
-        } else if (searchResultCommands != null || quickReplies != null) {
-            count += (quickReplies == null ? 0 : quickReplies.size()) + (searchResultCommands == null ? 0 : searchResultCommands.size());
+        } else if (searchResultCommands != null || quickReplies != null || talogramQuickReplies != null) {
+            count += (talogramQuickReplies == null ? 0 : talogramQuickReplies.size()) + (quickReplies == null ? 0 : quickReplies.size()) + (searchResultCommands == null ? 0 : searchResultCommands.size());
         } else if (searchResultSuggestions != null) {
             count += searchResultSuggestions.size();
         }
@@ -1749,6 +1769,9 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
         if (quickReplies != null) {
             quickReplies.clear();
         }
+        if (talogramQuickReplies != null) {
+            talogramQuickReplies.clear();
+        }
         if (searchResultSuggestions != null) {
             searchResultSuggestions.clear();
         }
@@ -1774,6 +1797,12 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             return 1;
         } else if (quickReplies != null && position >= 0 && position < quickReplies.size()) {
             return 5;
+        } else if (talogramQuickReplies != null) {
+            int localOffset = quickReplies == null ? 0 : quickReplies.size();
+            if (position >= localOffset && position < localOffset + talogramQuickReplies.size()) {
+                return 8;
+            }
+            return 0;
         } else {
             return 0;
         }
@@ -1848,13 +1877,19 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                 return null;
             }
             return searchResultSuggestions.get(i);
-        } else if (quickReplies != null || searchResultCommands != null) {
+        } else if (quickReplies != null || searchResultCommands != null || talogramQuickReplies != null) {
             if (quickReplies != null) {
                 if (i >= 0 && i < quickReplies.size()) {
                     return quickReplies.get(i);
                 } else if (quickReplies != null) {
                     i -= quickReplies.size();
                 }
+            }
+            if (talogramQuickReplies != null) {
+                if (i >= 0 && i < talogramQuickReplies.size()) {
+                    return talogramQuickReplies.get(i);
+                }
+                i -= talogramQuickReplies.size();
             }
             if (searchResultCommands != null) {
                 if (i < 0 || i >= searchResultCommands.size()) {
@@ -1925,6 +1960,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
     public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
         View view;
         switch (viewType) {
+            case 8:
             case 0:
                 view = new MentionCell(mContext, resourcesProvider);
                 ((MentionCell) view).setIsDarkTheme(isDarkTheme);
@@ -1998,6 +2034,22 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                     textView.setText(LocaleController.formatString("AttachInlineRestricted", R.string.AttachInlineRestricted, LocaleController.formatDateForBan(chat.banned_rights.until_date)));
                 }
             }
+        } else if (type == 8) {
+            MentionCell cell = (MentionCell) holder.itemView;
+            int localOffset = quickReplies == null ? 0 : quickReplies.size();
+            int index = position - localOffset;
+            if (talogramQuickReplies != null && index >= 0 && index < talogramQuickReplies.size()) {
+                TalogramSettings.QuickReply reply = talogramQuickReplies.get(index);
+                String help = reply.text == null || reply.text.trim().isEmpty()
+                        ? (reply.mediaType == TalogramSettings.MEDIA_TYPE_VIDEO
+                                ? LocaleController.getString(R.string.JokerQuickReplyMediaVideo)
+                                : LocaleController.getString(R.string.JokerQuickReplyMediaImage))
+                        : reply.text.trim();
+                if (help.length() > 100) {
+                    help = help.substring(0, 100);
+                }
+                cell.setBotCommand("/" + reply.shortcut, help, null, false);
+            }
         } else if (type == 5) {
             QuickRepliesActivity.QuickReplyView cell = (QuickRepliesActivity.QuickReplyView) holder.itemView;
             if (quickReplies != null && position >= 0 && position < quickReplies.size()) {
@@ -2031,6 +2083,9 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
 
         } else {
             MentionCell cell = (MentionCell) holder.itemView;
+            if (talogramQuickReplies != null) {
+                position -= talogramQuickReplies.size();
+            }
             if (searchResultUsernames != null) {
                 TLObject object = searchResultUsernames.get(position);
                 if (object instanceof TLRPC.User) {

@@ -623,6 +623,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         final ArrayList<Integer> accountNumbers = new ArrayList<>();
 
         accountNumbers.clear();
+        final boolean talogram100Accounts = org.telegram.messenger.TalogramSettings.isAllow100Accounts();
         for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
             if (UserConfig.getInstance(a).isClientActivated()) {
                 accountNumbers.add(a);
@@ -640,11 +641,12 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         });
 
         ItemOptions o = ItemOptions.makeOptions(this, button);
-        if (UserConfig.getActivatedAccountsCount() < UserConfig.MAX_ACCOUNT_COUNT) {
+        final int talogramAccountLimit = talogram100Accounts ? UserConfig.MAX_ACCOUNT_COUNT : 4;
+        if (UserConfig.getActivatedAccountsCount() < talogramAccountLimit) {
             o.add(R.drawable.msg_addbot, getString(R.string.AddAccount), () -> {
                 int freeAccounts = 0;
                 Integer availableAccount = null;
-                for (int a = UserConfig.MAX_ACCOUNT_COUNT - 1; a >= 0; a--) {
+                for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
                     if (!UserConfig.getInstance(a).isClientActivated()) {
                         freeAccounts++;
                         if (availableAccount == null) {
@@ -652,12 +654,12 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
                         }
                     }
                 }
-                if (!UserConfig.hasPremiumOnAccounts()) {
-                    freeAccounts -= (UserConfig.MAX_ACCOUNT_COUNT - UserConfig.MAX_ACCOUNT_DEFAULT_COUNT);
+                if (!talogram100Accounts && !UserConfig.hasPremiumOnAccounts()) {
+                    freeAccounts -= (talogramAccountLimit - UserConfig.MAX_ACCOUNT_DEFAULT_COUNT);
                 }
                 if (freeAccounts > 0 && availableAccount != null) {
                     presentFragment(new LoginActivity(availableAccount));
-                } else if (!UserConfig.hasPremiumOnAccounts()) {
+                } else if (!talogram100Accounts && !UserConfig.hasPremiumOnAccounts()) {
                     showDialog(new LimitReachedBottomSheet(this, getContext(), TYPE_ACCOUNTS, currentAccount, null));
                 }
             });

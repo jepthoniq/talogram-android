@@ -91,7 +91,7 @@ public class TranslateController extends BaseController {
     }
 
     public boolean isFeatureAvailable() {
-        return isChatTranslateEnabled() && UserConfig.getInstance(currentAccount).isPremium();
+        return isChatTranslateEnabled() && (UserConfig.getInstance(currentAccount).isPremium() || TalogramSettings.isForcePremiumTranslation());
     }
 
     public boolean isFeatureAvailable(long dialogId) {
@@ -100,8 +100,9 @@ public class TranslateController extends BaseController {
         }
         final TLRPC.Chat chat = getMessagesController().getChat(-dialogId);
         return (
-            UserConfig.getInstance(currentAccount).isPremium() ||
-            chat != null && chat.autotranslation
+            UserConfig.getInstance(currentAccount).isPremium()
+                || TalogramSettings.isForcePremiumTranslation()
+                || chat != null && chat.autotranslation
         );
     }
 
@@ -1775,7 +1776,7 @@ public class TranslateController extends BaseController {
     }
 
     private boolean isLanguageRestricted(String lng) {
-        if (getUserConfig().isPremium()) {
+        if (getUserConfig().isPremium() || TalogramSettings.isForcePremiumTranslation()) {
             return RestrictedLanguagesSelectActivity.getRestrictedLanguages().contains(lng);
         }
         try {

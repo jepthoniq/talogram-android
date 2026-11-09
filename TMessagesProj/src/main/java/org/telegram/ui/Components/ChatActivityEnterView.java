@@ -7482,6 +7482,24 @@ public class ChatActivityEnterView extends FrameLayout implements
                 return;
             }
             CharSequence message = messageEditText == null ? "" : messageEditText.getTextToUse();
+            // Talogram mod: a typed /shortcut sends the stored local quick reply directly, without inserting the text
+            if (!isInScheduleMode() && message != null) {
+                String rawShortcut = message.toString().trim();
+                if (rawShortcut.startsWith("/")) {
+                    org.telegram.messenger.TalogramSettings.QuickReply quickReply = org.telegram.messenger.TalogramSettings.findQuickReply(rawShortcut);
+                    if (quickReply != null) {
+                        if (messageEditText != null) {
+                            messageEditText.setText("");
+                        }
+                        org.telegram.messenger.TalogramQuickReplySender.send(currentAccount, dialog_id, quickReply);
+                        if (delegate != null) {
+                            delegate.onMessageSend(null, notify, scheduleDate, scheduleRepeatPeriod, payStars);
+                        }
+                        updateSendButtonPaid();
+                        return;
+                    }
+                }
+            }
             if (parentFragment != null) {
                 TLRPC.Chat chat = parentFragment.getCurrentChat();
                 if (chat != null && chat.slowmode_enabled && !ChatObject.hasAdminRights(chat)) {

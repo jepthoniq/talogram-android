@@ -107,6 +107,7 @@ import org.telegram.messenger.R;
 import org.telegram.messenger.SendMessagesHelper;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.TalogramSettings;
 import org.telegram.messenger.UserObject;
 import org.telegram.messenger.Utilities;
 import org.telegram.messenger.VideoEditedInfo;
@@ -201,6 +202,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
     public static final int LAYOUT_TYPE_LINK = 15;
     public static final int LAYOUT_TYPE_RICH = 16;
     public static final int LAYOUT_TYPE_MONEY = 17;
+    public static final int LAYOUT_TYPE_TALOGRAM_REPLIES = 18;
 
     private static final int ANIMATOR_ID_CAPTION_ABOVE = 0;
     private static final int ANIMATOR_ID_CAPTION_VISIBLE = 1;
@@ -1035,13 +1037,14 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
     private ChatAttachAlertPhotoLayoutPreview photoPreviewLayout;
     public ChatAttachAlertColorsLayout colorsLayout;
     private ChatAttachAlertQuickRepliesLayout quickRepliesLayout;
+    private TalogramQuickRepliesLayout talogramQuickRepliesLayout;
     private ChatAttachAlertEmojiLayout emojiLayout;
     private ChatAttachAlertEmojiLayout stickersLayout;
     private ChatAttachAlertRichLayout richLayout;
     private ChatAttachAlertGramLayout gramLayout;
     private boolean gramSendDismissalInProgress;
     private float gramSendExitTranslationY;
-    private AttachAlertLayout[] layouts = new AttachAlertLayout[12];
+    private AttachAlertLayout[] layouts = new AttachAlertLayout[13];
     private LongSparseArray<ChatAttachAlertBotWebViewLayout> botAttachLayouts = new LongSparseArray<>();
     private AttachAlertLayout currentAttachLayout;
     private AttachAlertLayout nextAttachLayout;
@@ -2850,6 +2853,13 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                     }
                 } else if (num == 11) {
                     openQuickRepliesLayout();
+                } else if (num == LAYOUT_TYPE_TALOGRAM_REPLIES) {
+                    if (talogramQuickRepliesLayout == null) {
+                        talogramQuickRepliesLayout = new TalogramQuickRepliesLayout(this, getContext(), resourcesProvider);
+                        layouts[12] = talogramQuickRepliesLayout;
+                    }
+                    talogramQuickRepliesLayout.refresh();
+                    showLayout(talogramQuickRepliesLayout);
                 } else if (num == 12) {
                     if (!todoEnabled && checkCanRemoveRestrictionsByBoosts()) {
                         return;
@@ -4571,6 +4581,8 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
             newId = 10;
         } else if (layout == quickRepliesLayout) {
             newId = LAYOUT_TYPE_REPLIES;
+        } else if (layout == talogramQuickRepliesLayout) {
+            newId = LAYOUT_TYPE_TALOGRAM_REPLIES;
         } else if (layout == todoLayout) {
             newId = LAYOUT_TYPE_TODO;
         } else if (layout == emojiLayout) {
@@ -4874,7 +4886,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
         float isGray = 0;
         for (ListAnimator.Entry<Long> entry : animatorCurrentVisibleLayout) {
             long id = entry.item;
-            if (id == LAYOUT_TYPE_PHOTO || id == LAYOUT_TYPE_MUSIC || id == LAYOUT_TYPE_DOCUMENTS || id == LAYOUT_TYPE_CONTACTS || id == LAYOUT_TYPE_LOCATION || id == LAYOUT_TYPE_POLL || id == LAYOUT_TYPE_REPLIES || id == LAYOUT_TYPE_TODO) {
+            if (id == LAYOUT_TYPE_PHOTO || id == LAYOUT_TYPE_MUSIC || id == LAYOUT_TYPE_DOCUMENTS || id == LAYOUT_TYPE_CONTACTS || id == LAYOUT_TYPE_LOCATION || id == LAYOUT_TYPE_POLL || id == LAYOUT_TYPE_REPLIES || id == LAYOUT_TYPE_TODO || id == LAYOUT_TYPE_TALOGRAM_REPLIES) {
                 isGray += entry.getVisibility();
             }
         }
@@ -6657,6 +6669,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
         private int todoButton;
         private int contactButton;
         private int quickRepliesButton;
+        private int talogramQuickRepliesButton;
         private int locationButton;
         private int stickerButton;
         private int emojiButton;
@@ -6724,6 +6737,9 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                         attachButton.setTextAndIcon(11, getString(R.string.AttachQuickReplies), GlassTabView.TabAnimation.REPLIES);
                         attachButton.setTag(11);
                         needPremium = true;
+                    } else if (position == talogramQuickRepliesButton) {
+                        attachButton.setTextAndIcon(11, getString(R.string.JokerQuickRepliesTitle), GlassTabView.TabAnimation.REPLIES);
+                        attachButton.setTag(LAYOUT_TYPE_TALOGRAM_REPLIES);
                     } else if (position == todoButton) {
                         attachButton.setTextAndIcon(12, getString(R.string.Todo), GlassTabView.TabAnimation.CHECKLIST);
                         attachButton.setTag(12);
@@ -6793,6 +6809,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
             todoButton = -1;
             contactButton = -1;
             quickRepliesButton = -1;
+            talogramQuickRepliesButton = -1;
             locationButton = -1;
             stickerButton = -1;
             linksButton = -1;
@@ -6873,6 +6890,9 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                 }
                 if (baseFragment instanceof ChatActivity && ((ChatActivity) baseFragment).getChatMode() == 0 && user != null && !paidUser && !user.bot && QuickRepliesController.getInstance(currentAccount).hasReplies()) {
                     quickRepliesButton = buttonsCount++;
+                }
+                if (TalogramSettings.getQuickRepliesCount() > 0 && baseFragment instanceof ChatActivity && ((ChatActivity) baseFragment).getChatMode() == 0) {
+                    talogramQuickRepliesButton = buttonsCount++;
                 }
 
                 if ((photosEnabled || videosEnabled) && !paidUser && (chat == null || !ChatObject.isMonoForum(chat))) {
@@ -6964,6 +6984,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
         }
         contactsLayout = null;
         quickRepliesLayout = null;
+        talogramQuickRepliesLayout = null;
         audioLayout = null;
         pollLayout = null;
         todoLayout = null;

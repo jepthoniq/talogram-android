@@ -1342,6 +1342,31 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
                 storyViewer.switchToPip();
             }
         });
+        if (org.telegram.messenger.TalogramSettings.isStoryFreeze() && dialogId != UserConfig.getInstance(currentAccount).getClientUserId()) {
+            ImageView eyeIconView = new ImageView(context);
+            eyeIconView.setImageResource(R.drawable.ic_talogram_eye);
+            eyeIconView.setPadding(dp(8), dp(8), dp(8), dp(8));
+            eyeIconView.setBackground(Theme.createSelectorDrawable(Color.WHITE));
+            eyeIconView.setColorFilter(new PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN));
+            eyeIconView.setContentDescription(getString(R.string.JokerStoryMarkViewed));
+            storyContainer.addView(eyeIconView, LayoutHelper.createFrame(40, 40, Gravity.RIGHT | Gravity.TOP, 2, 15, 2 + 40 + 40, 0));
+            final PeerStory currentStoryFinal = currentStory;
+            eyeIconView.setOnClickListener(v -> {
+                if (eyeIconView.getVisibility() == View.GONE) {
+                    return;
+                }
+                if (currentStoryFinal == null || currentStoryFinal.storyItem == null) {
+                    return;
+                }
+                int storyId = currentStoryFinal.storyItem.id;
+                org.telegram.tgnet.tl.TL_stories.TL_stories_readStories req = new org.telegram.tgnet.tl.TL_stories.TL_stories_readStories();
+                req.peer = MessagesController.getInstance(currentAccount).getInputPeer(dialogId);
+                req.max_id = storyId;
+                org.telegram.tgnet.ConnectionsManager.getInstance(currentAccount).sendRequest(req, null);
+                org.telegram.messenger.NotificationCenter.getInstance(currentAccount).postNotificationName(org.telegram.messenger.NotificationCenter.storiesReadUpdated);
+                eyeIconView.setVisibility(GONE);
+            });
+        }
 
         optionsIconView.setOnClickListener(v -> {
             delegate.setPopupIsVisible(true);
@@ -2070,40 +2095,12 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
                         }
 
                         if (!unsupported && allowShare && !currentStory.isLive) {
-                            if (UserConfig.getInstance(currentAccount).isPremium()) {
-                                ActionBarMenuItem.addItem(popupLayout, R.drawable.msg_gallery, getString(R.string.SaveToGallery), false, resourcesProvider).setOnClickListener(v -> {
-                                    saveToGallery();
-                                    if (popupMenu != null) {
-                                        popupMenu.dismiss();
-                                    }
-                                });
-                            } else if (!MessagesController.getInstance(currentAccount).premiumFeaturesBlocked()) {
-                                Drawable lockIcon = ContextCompat.getDrawable(context, R.drawable.msg_gallery_locked2);
-                                lockIcon.setColorFilter(new PorterDuffColorFilter(ColorUtils.blendARGB(Color.WHITE, Color.BLACK, 0.5f), PorterDuff.Mode.MULTIPLY));
-                                CombinedDrawable combinedDrawable = new CombinedDrawable(
-                                        ContextCompat.getDrawable(context, R.drawable.msg_gallery_locked1),
-                                        lockIcon
-                                ) {
-                                    @Override
-                                    public void setColorFilter(ColorFilter colorFilter) {
-
-                                    }
-                                };
-                                ActionBarMenuSubItem item = ActionBarMenuItem.addItem(popupLayout, R.drawable.msg_gallery, getString(R.string.SaveToGallery), false, resourcesProvider);
-                                item.setIcon(combinedDrawable);
-                                item.setOnClickListener(v -> {
-                                    item.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-                                    BulletinFactory bulletinFactory = BulletinFactory.global();
-                                    if (bulletinFactory != null) {
-                                        bulletinFactory.createSimpleBulletin(R.raw.ic_save_to_gallery, AndroidUtilities.replaceSingleTag(
-                                                getString(R.string.SaveStoryToGalleryPremiumHint),
-                                                () -> {
-                                                    PremiumFeatureBottomSheet sheet = new PremiumFeatureBottomSheet(storyViewer.fragment, PremiumPreviewFragment.PREMIUM_FEATURE_STORIES, false);
-                                                    delegate.showDialog(sheet);
-                                                })).show();
-                                    }
-                                });
-                            }
+                            ActionBarMenuItem.addItem(popupLayout, R.drawable.msg_gallery, getString(R.string.SaveToGallery), false, resourcesProvider).setOnClickListener(v -> {
+                                saveToGallery();
+                                if (popupMenu != null) {
+                                    popupMenu.dismiss();
+                                }
+                            });
                         }
 
                         if (!MessagesController.getInstance(currentAccount).premiumFeaturesBlocked() && !isChannel) {
