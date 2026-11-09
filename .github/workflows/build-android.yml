@@ -15,7 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 350
     env:
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      ANDROID_HOME: /usr/local/android-sdk-linux
+      ANDROID_SDK_ROOT: /usr/local/android-sdk-linux
+      ANDROID_NDK_VERSION: 27.2.12479018
+      ANDROID_NDK_HOME: /usr/local/android-sdk-linux/ndk/27.2.12479018
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -29,12 +32,21 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Install Android command line tools
+        run: |
+          set -e
+          mkdir -p "$ANDROID_HOME/cmdline-tools"
+          curl -fL "https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip" -o /tmp/cmdtools.zip
+          cd /tmp
+          unzip -q cmdtools.zip
+          mv cmdline-tools "$ANDROID_HOME/cmdline-tools/latest"
+          rm cmdtools.zip
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+          yes | sdkmanager --licenses > /dev/null || true
 
       - name: Install Android SDK, NDK and cmake
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
           sdkmanager \
             "build-tools;36.0.0" \
             "platforms;android-36" \
@@ -44,8 +56,6 @@ jobs:
 
       - name: Cache Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          cache-read-only: false
 
       - name: Build Talogram (afat release)
         run: |
