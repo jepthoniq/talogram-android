@@ -1113,7 +1113,10 @@ public class TranslateController extends BaseController {
                     }
                 }
 
-                final String method = getMessagesController().translationsAutoEnabled;
+                String method = getMessagesController().translationsAutoEnabled;
+                if (TalogramSettings.isForcePremiumTranslation() && !UserConfig.getInstance(currentAccount).isPremium()) {
+                    method = "alternative";
+                }
                 if ("alternative".equals(method) || "system".equals(method)) {
                     final String toLanguage = pendingTranslation1.language;
                     for (int i = 0; i < pendingTranslation1.messageIds.size(); ++i) {

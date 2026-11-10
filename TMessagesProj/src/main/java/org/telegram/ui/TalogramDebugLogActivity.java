@@ -74,7 +74,9 @@ public class TalogramDebugLogActivity extends BaseFragment {
         logView.setTextIsSelectable(true);
         logView.setText(loadLog());
         scrollView = new ScrollView(context);
-        scrollView.addView(logView);
+        scrollView.setVerticalScrollBarEnabled(false);
+        scrollView.setPadding(0, AndroidUtilities.statusBarHeight + ActionBar.getCurrentActionBarHeight(), 0, AndroidUtilities.navigationBarHeight);
+        scrollView.addView(logView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
 
         FrameLayout contentArea = new FrameLayout(context);
         emptyView = new TextView(context);
@@ -96,7 +98,8 @@ public class TalogramDebugLogActivity extends BaseFragment {
         content.addView(sizeView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
 
         content.addView(createButtonsRow(context));
-        frameLayout.addView(content);
+        frameLayout.addView(content, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+        frameLayout.addView(simpleActionBar, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.FILL_HORIZONTAL | Gravity.TOP));
         return fragmentView;
     }
 

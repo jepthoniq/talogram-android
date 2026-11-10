@@ -107,6 +107,11 @@ public class TalogramQuickRepliesActivity extends BaseFragment {
         return fragmentView;
     }
 
+    @Override
+    protected RecyclerListView getListViewForSimpleGlass() {
+        return listView;
+    }
+
     private LinearLayout createEmptyLayout(Context context) {
         LinearLayout layout = new LinearLayout(context);
         layout.setOrientation(LinearLayout.VERTICAL);

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="AppName">Talogram</string>
     <string name="AppNameBeta">Talogram Beta</string>
@@ -11724,6 +11724,11 @@
     <string name="JokerQuickReplyTextRequired">Write a reply or attach a photo or video.</string>
     <string name="JokerQuickReplyShortcutUsed">Shortcut is already in use</string>
     <string name="JokerQuickReplyMediaTooBig">Media is too large (64 MB max)</string>
+    <string name="JokerQuickReplyShortcutLabel">SHORTCUT</string>
+    <string name="JokerQuickReplyShortcutCaption">Type /shortcut in a chat to send this reply instantly</string>
+    <string name="JokerQuickReplyTextLabel">REPLY TEXT</string>
+    <string name="JokerQuickReplyMediaLabel">MEDIA</string>
+    <string name="JokerQuickReplyAttachHint">Add a photo or video to this reply</string>
     <string name="JokerStoryMarkViewed">Mark as viewed</string>
     <string name="JokerSubscribeTitle">Subscription Required</string>
     <string name="JokerSubscribeMessage">To activate Joker features, please join @aljokeruserbot then check again.</string>
@@ -11741,5 +11746,3 @@
     <string name="JokerErrorsToastOff">Error messages will not appear</string>
     <string name="JokerLoginRetry">No response from the server. Check your connection and try again.</string>
 </resources>
-
-
