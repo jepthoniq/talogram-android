@@ -1807,6 +1807,11 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 TLRPC.TL_auth_sentCodeTypeFirebaseSms r = (TLRPC.TL_auth_sentCodeTypeFirebaseSms) res.type;
                 needShowProgress(0);
                 isRequestingFirebaseSms = true;
+                AndroidUtilities.runOnUIThread(() -> {
+                    if (isRequestingFirebaseSms) {
+                        resendCodeFromSafetyNet(params, res, "FIREBASE_SMS_TIMEOUT");
+                    }
+                }, 30000);
                 final String phone = params.getString("phoneFormated");
                 if (r.play_integrity_nonce != null) {
                     IntegrityManager integrityManager = IntegrityManagerFactory.create(getContext());
@@ -1913,6 +1918,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 }
             } else {
                 FileLog.d("{GOOGLE_PLAY_SERVICES_NOT_AVAILABLE} Resend firebase sms because firebase is not available");
+                isRequestingFirebaseSms = true;
                 resendCodeFromSafetyNet(params, res, "GOOGLE_PLAY_SERVICES_NOT_AVAILABLE");
             }
             return;
