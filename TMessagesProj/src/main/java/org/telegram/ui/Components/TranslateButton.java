@@ -1,4 +1,4 @@
-﻿package org.telegram.ui.Components;
+package org.telegram.ui.Components;
 
 import static org.telegram.messenger.AndroidUtilities.dp;
 import static org.telegram.messenger.AndroidUtilities.dpf2;

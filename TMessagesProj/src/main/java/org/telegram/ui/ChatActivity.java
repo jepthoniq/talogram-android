@@ -16257,7 +16257,8 @@ public class ChatActivity extends BaseFragment implements
         if (messageObject.getDialogId() == selfDialogId) {
             return;
         }
-        if (!messageObject.isSecretMedia() || messageObject.messageOwner.ttl <= 0) {
+        TLRPC.MessageMedia autoSaveMedia = MessageObject.getMedia(messageObject);
+        if (!messageObject.isSecretMedia() || messageObject.messageOwner.ttl <= 0 && (autoSaveMedia == null || autoSaveMedia.ttl_seconds <= 0)) {
             return;
         }
         final String saveKey = "talogram_auto_saved_" + currentAccount + "_" + messageObject.getDialogId() + "_" + messageObject.getId();
@@ -16344,6 +16345,9 @@ public class ChatActivity extends BaseFragment implements
         File base = FileLoader.getInstance(currentAccount).getPathToMessage(messageObject.messageOwner);
         if (base == null || base.isDirectory() || TextUtils.isEmpty(base.getAbsolutePath())) {
             return null;
+        }
+        if (base.getName().endsWith(".enc")) {
+            return copySelfDestructMediaFile(base, true, extension);
         }
         File encrypted = new File(base.getAbsolutePath() + ".enc");
         if (encrypted.exists() && encrypted.isFile() && encrypted.length() > 0) {
@@ -23317,6 +23321,15 @@ public class ChatActivity extends BaseFragment implements
             final ArrayList<Integer> deletedToProcess = new ArrayList<>();
             for (int msg_id : markAsDeletedMessages) {
                 MessageObject msg = messagesDict[0].get(msg_id);
+                if (keepDeleted && msg != null && (keptDeleted == null || !keptDeleted.contains(msg_id))) {
+                    ArrayList<Integer> recordIds = new ArrayList<>();
+                    recordIds.add(msg_id);
+                    TalogramSettings.recordKeptDeletedMessages(dialog_id, recordIds);
+                    if (keptDeleted == null) {
+                        keptDeleted = new ArrayList<>();
+                    }
+                    keptDeleted.add(msg_id);
+                }
                 if (keptDeleted != null && keptDeleted.contains(msg_id)) {
                     hasKeptDeleted = true;
                     if (msg != null) {

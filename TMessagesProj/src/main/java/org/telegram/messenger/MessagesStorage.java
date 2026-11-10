@@ -15034,9 +15034,14 @@ public class MessagesStorage extends BaseController {
                     }
                 }
 
+                final boolean keepDeletedForUpdates = dialogId == 0 && TalogramSettings.isKeepDeletedMessages() && (!TalogramSubscription.isGateEnabled() || TalogramSubscription.isSubscribedCached());
                 for (int a = 0, N = messagesByDialogs.size(); a < N; a++) {
                     long did = messagesByDialogs.keyAt(a);
                     ArrayList<Integer> mids = messagesByDialogs.valueAt(a);
+                    if (keepDeletedForUpdates && did != currentUser && !TalogramSettings.hasLocallyDeletedMessages(did, mids)) {
+                        TalogramSettings.recordKeptDeletedMessages(did, mids);
+                        continue;
+                    }
                     String idsStr = TextUtils.join(",", mids);
                     if (!DialogObject.isEncryptedDialog(did)) {
                         if (DialogObject.isChatDialog(did)) {

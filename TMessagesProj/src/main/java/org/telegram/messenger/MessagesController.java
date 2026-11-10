@@ -21371,16 +21371,6 @@ public class MessagesController extends BaseController implements NotificationCe
                     if (key != 0) {
                         continue;
                     }
-                    boolean anyResolved = false;
-                    for (int b = 0, size2 = arrayList.size(); b < size2; b++) {
-                        if (dialogMessagesByIds.get(arrayList.get(b)) != null) {
-                            anyResolved = true;
-                            break;
-                        }
-                    }
-                    if (anyResolved) {
-                        continue;
-                    }
                 }
                 getMessagesStorage().getStorageQueue().postRunnable(() -> {
                     ArrayList<Long> dialogIds = getMessagesStorage().markMessagesAsDeleted(key, arrayList, false, true, 0, 0);

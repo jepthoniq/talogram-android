@@ -109,6 +109,28 @@ public final class TalogramSettings {
         return getBoolean(KEY_STORY_FREEZE);
     }
 
+    private static final HashSet<String> locallyDeletedMessages = new HashSet<>();
+
+    private static boolean isLocallyDeleted(long dialogId, int messageId) {
+        synchronized (locallyDeletedMessages) {
+            return locallyDeletedMessages.contains(dialogId + "_" + messageId);
+        }
+    }
+
+    public static boolean hasLocallyDeletedMessages(long dialogId, List<Integer> messageIds) {
+        if (messageIds == null || messageIds.isEmpty()) {
+            return false;
+        }
+        synchronized (locallyDeletedMessages) {
+            for (Integer id : messageIds) {
+                if (id != null && locallyDeletedMessages.contains(dialogId + "_" + id)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     public static void recordKeptDeletedMessages(long dialogId, List<Integer> messageIds) {
         if (dialogId == 0 || messageIds == null || messageIds.isEmpty()) {
             return;
@@ -121,6 +143,9 @@ public final class TalogramSettings {
             String key = "kept_deleted_" + dialogId;
             JSONArray arr = new JSONArray(p.getString(key, "[]"));
             for (Integer id : messageIds) {
+                if (id == null || isLocallyDeleted(dialogId, id)) {
+                    continue;
+                }
                 boolean exists = false;
                 for (int i = 0; i < arr.length(); i++) {
                     if (arr.getInt(i) == id) {
@@ -189,6 +214,16 @@ public final class TalogramSettings {
     public static void removeKeptDeletedMessages(long dialogId, List<Integer> messageIds) {
         if (dialogId == 0 || messageIds == null || messageIds.isEmpty()) {
             return;
+        }
+        synchronized (locallyDeletedMessages) {
+            for (Integer id : messageIds) {
+                if (id != null) {
+                    locallyDeletedMessages.add(dialogId + "_" + id);
+                }
+            }
+            if (locallyDeletedMessages.size() > 2000) {
+                locallyDeletedMessages.clear();
+            }
         }
         synchronized (keptDeletedCache) {
             HashSet<Integer> set = keptDeletedSet(dialogId);
