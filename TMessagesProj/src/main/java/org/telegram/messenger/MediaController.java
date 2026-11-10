@@ -1764,7 +1764,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         cleanupPlayer(true, true);
         audioInfo = null;
         playMusicAgain = false;
-        for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
+        for (int a = 0; a < UserConfig.getStartupAccountBound(); a++) {
             DownloadController.getInstance(a).cleanup();
         }
         videoConvertQueue.clear();

@@ -513,9 +513,7 @@ void init(JNIEnv *env, jclass c, jint instanceNum, jint version, jint layer, jin
 
 void setJava(JNIEnv *env, jclass c, jboolean useJavaByteBuffers) {
     ConnectionsManager::useJavaVM(java, useJavaByteBuffers);
-    for (int a = 0; a < MAX_ACCOUNT_COUNT; a++) {
-        ConnectionsManager::getInstance(a).setDelegate(new Delegate());
-    }
+    ConnectionsManager::setStaticDelegate(new Delegate());
 }
 
 static const char *ConnectionsManagerClassPathName = "org/telegram/tgnet/ConnectionsManager";

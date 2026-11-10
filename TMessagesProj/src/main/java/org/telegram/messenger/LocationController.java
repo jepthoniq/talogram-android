@@ -970,7 +970,7 @@ public class LocationController extends BaseController implements NotificationCe
 
     public static int getLocationsCount() {
         int count = 0;
-        for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
+        for (int a = 0; a < UserConfig.getStartupAccountBound(); a++) {
             count += LocationController.getInstance(a).sharingLocationsUI.size();
         }
         return count;

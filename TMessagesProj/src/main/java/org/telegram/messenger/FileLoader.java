@@ -1226,6 +1226,10 @@ public class FileLoader extends BaseController {
         delegate = fileLoaderDelegate;
     }
 
+    public boolean hasDelegate() {
+        return delegate != null;
+    }
+
     public static String getMessageFileName(TLRPC.Message message) {
         if (message == null) {
             return "";

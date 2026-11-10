@@ -26,7 +26,7 @@ public class UserConfig extends BaseController {
 
     public static int selectedAccount;
     public final static int MAX_ACCOUNT_DEFAULT_COUNT = 3;
-    public final static int MAX_ACCOUNT_COUNT = 4;
+    public final static int MAX_ACCOUNT_COUNT = 100;
 
     private final Object sync = new Object();
     private volatile boolean configLoaded;
@@ -122,7 +122,24 @@ public class UserConfig extends BaseController {
         return false;
     }
 
+    public static int getStartupAccountBound() {
+        int bound = Math.min(MAX_ACCOUNT_COUNT, MAX_ACCOUNT_DEFAULT_COUNT + 1);
+        try {
+            if (ApplicationLoader.applicationContext != null) {
+                bound = Math.max(bound, ApplicationLoader.applicationContext
+                        .getSharedPreferences("userconfing", Context.MODE_PRIVATE)
+                        .getInt("talogram_account_bound", bound));
+            }
+        } catch (Exception e) {
+            FileLog.e(e);
+        }
+        return Math.min(MAX_ACCOUNT_COUNT, bound);
+    }
+
     public static int getMaxAccountCount() {
+        if (TalogramSettings.isAllow100Accounts()) {
+            return MAX_ACCOUNT_COUNT;
+        }
         return hasPremiumOnAccounts() ? 5 : 3;
     }
 
@@ -265,6 +282,24 @@ public class UserConfig extends BaseController {
             currentUser = user;
             clientUserId = user.id;
             checkPremiumSelf(oldUser, user);
+        }
+        if (user != null) {
+            try {
+                ImageLoader.getInstance().setupAccount(currentAccount);
+            } catch (Exception e) {
+                FileLog.e(e);
+            }
+            int bound = getStartupAccountBound();
+            if (currentAccount >= bound) {
+                try {
+                    ApplicationLoader.applicationContext
+                            .getSharedPreferences("userconfing", Context.MODE_PRIVATE)
+                            .edit()
+                            .putInt("talogram_account_bound", Math.min(MAX_ACCOUNT_COUNT, currentAccount + 1))
+                            .apply();
+                } catch (Exception ignore) {
+                }
+            }
         }
     }
 

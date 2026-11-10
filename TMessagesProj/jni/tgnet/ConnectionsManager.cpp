@@ -43,11 +43,14 @@ jclass jclass_ByteBuffer = nullptr;
 jmethodID jclass_ByteBuffer_allocateDirect = nullptr;
 #endif
 
+static ConnectionsManager *staticInstances[MAX_ACCOUNT_COUNT] = { nullptr };
+static ConnectiosManagerDelegate *staticDelegate = nullptr;
 static bool done = false;
 static constexpr int32_t MAX_CAPTCHA_CHECKS = 5;
 
 ConnectionsManager::ConnectionsManager(int32_t instance) {
     instanceNum = instance;
+    delegate = staticDelegate;
     if ((epolFd = epoll_create(128)) == -1) {
         if (LOGS_ENABLED) DEBUG_E("unable to create epoll instance");
         exit(1);
@@ -138,24 +141,13 @@ ConnectionsManager::~ConnectionsManager() {
 }
 
 ConnectionsManager& ConnectionsManager::getInstance(int32_t instanceNum) {
-    switch (instanceNum) {
-        case 0:
-            static ConnectionsManager instance0(0);
-            return instance0;
-        case 1:
-            static ConnectionsManager instance1(1);
-            return instance1;
-        case 2:
-            static ConnectionsManager instance2(2);
-            return instance2;
-        case 3:
-            static ConnectionsManager instance3(3);
-            return instance3;
-        case 4:
-        default:
-            static ConnectionsManager instance4(4);
-            return instance4;
+    if (instanceNum < 0 || instanceNum >= MAX_ACCOUNT_COUNT) {
+        instanceNum = 0;
     }
+    if (staticInstances[instanceNum] == nullptr) {
+        staticInstances[instanceNum] = new ConnectionsManager(instanceNum);
+    }
+    return *staticInstances[instanceNum];
 }
 
 int ConnectionsManager::callEvents(int64_t now) {
@@ -3609,6 +3601,15 @@ ConnectionState ConnectionsManager::getConnectionState() {
 
 void ConnectionsManager::setDelegate(ConnectiosManagerDelegate *connectiosManagerDelegate) {
     delegate = connectiosManagerDelegate;
+}
+
+void ConnectionsManager::setStaticDelegate(ConnectiosManagerDelegate *connectiosManagerDelegate) {
+    staticDelegate = connectiosManagerDelegate;
+    for (int32_t i = 0; i < MAX_ACCOUNT_COUNT; i++) {
+        if (staticInstances[i] != nullptr) {
+            staticInstances[i]->delegate = connectiosManagerDelegate;
+        }
+    }
 }
 
 void ConnectionsManager::setPushConnectionEnabled(bool value) {
