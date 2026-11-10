@@ -773,12 +773,12 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         sizeNotifierFrameLayout.addView(backButtonView, LayoutHelper.createFrame(32, 32, Gravity.LEFT | Gravity.TOP, 16, 16, 0, 0));
 
         ImageView talogramLogButton = new ImageView(context);
-        talogramLogButton.setImageResource(R.drawable.ic_talogram_info);
+        talogramLogButton.setImageResource(R.drawable.ic_talogram_login_log);
         talogramLogButton.setContentDescription("Error log");
         talogramLogButton.setScaleType(ImageView.ScaleType.CENTER);
-        talogramLogButton.setColorFilter(new PorterDuffColorFilter(0x66FFFFFF, PorterDuff.Mode.SRC_IN));
+        talogramLogButton.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(15), Theme.getColor(Theme.key_featuredStickers_addButton)));
         talogramLogButton.setOnClickListener(v -> presentFragment(new TalogramDebugLogActivity()));
-        sizeNotifierFrameLayout.addView(talogramLogButton, LayoutHelper.createFrame(32, 32, Gravity.LEFT | Gravity.TOP, 56, 16, 0, 0));
+        sizeNotifierFrameLayout.addView(talogramLogButton, LayoutHelper.createFrame(30, 30, Gravity.LEFT | Gravity.TOP, 56, 17, 0, 0));
 
         if (emailChangeSkipCallback != null && !emailChangeNonSkippable && emailChangeIsSuggestion) {
             emailChangeSkipButton = new TextView(context);
