@@ -11729,6 +11729,17 @@
     <string name="JokerSubscribeMessage">To activate Joker features, please join @aljokeruserbot then check again.</string>
     <string name="JokerJoinChannel">Join Channel</string>
     <string name="JokerCheckAgain">Check Again</string>
+    <string name="JokerDebugLog">Error Log</string>
+    <string name="JokerDebugLogInfo">Crashes and request failures from this device. Copy it and send it to the developer.</string>
+    <string name="JokerCopyLog">Copy Log</string>
+    <string name="JokerClearLog">Clear Log</string>
+    <string name="JokerLogCopied">Log copied - paste it to me</string>
+    <string name="JokerLogCleared">Log cleared</string>
+    <string name="JokerLogEmpty">No errors logged yet</string>
+    <string name="JokerErrorsToggle">Show errors in app</string>
+    <string name="JokerErrorsToastOn">Error messages will appear as toasts</string>
+    <string name="JokerErrorsToastOff">Error messages will not appear</string>
+    <string name="JokerLoginRetry">No response from the server. Check your connection and try again.</string>
 </resources>
 
 

@@ -45,9 +45,10 @@ public class TalogramSettingsActivity extends BaseFragment {
     private static final int ROW_STORY_FREEZE = 8;
     private static final int ROW_LOCAL_HEADER = 9;
     private static final int ROW_QUICK_REPLIES = 10;
-    private static final int ROW_CREDITS_HEADER = 11;
-    private static final int ROW_CREDITS = 12;
-    private static final int ROW_COUNT = 13;
+    private static final int ROW_DEBUG_LOG = 11;
+    private static final int ROW_CREDITS_HEADER = 12;
+    private static final int ROW_CREDITS = 13;
+    private static final int ROW_COUNT = 14;
 
     private RecyclerListView listView;
     private ListAdapter adapter;
@@ -136,6 +137,10 @@ public class TalogramSettingsActivity extends BaseFragment {
         }
         if (position == ROW_QUICK_REPLIES) {
             presentFragment(new TalogramQuickRepliesActivity());
+            return;
+        }
+        if (position == ROW_DEBUG_LOG) {
+            presentFragment(new TalogramDebugLogActivity());
         }
     }
 
@@ -157,7 +162,7 @@ public class TalogramSettingsActivity extends BaseFragment {
             if (position >= ROW_FEATURES_HEADER && position <= ROW_STORY_FREEZE) {
                 return position != ROW_FEATURES_HEADER;
             }
-            return position == ROW_QUICK_REPLIES;
+            return position == ROW_QUICK_REPLIES || position == ROW_DEBUG_LOG;
         }
 
         @NonNull
@@ -229,7 +234,11 @@ public class TalogramSettingsActivity extends BaseFragment {
                 }
             } else if (holder.getItemViewType() == TYPE_VALUE) {
                 TextSettingsCell cell = (TextSettingsCell) holder.itemView;
-                cell.setTextAndValue(LocaleController.getString(R.string.JokerQuickRepliesTitle), String.valueOf(TalogramSettings.getQuickRepliesCount()), true);
+                if (position == ROW_DEBUG_LOG) {
+                    cell.setTextAndValue(LocaleController.getString(R.string.JokerDebugLog), null, true);
+                } else {
+                    cell.setTextAndValue(LocaleController.getString(R.string.JokerQuickRepliesTitle), String.valueOf(TalogramSettings.getQuickRepliesCount()), true);
+                }
             } else {
                 TextInfoPrivacyCell cell = (TextInfoPrivacyCell) holder.itemView;
                 cell.setText(LocaleController.getString(R.string.JokerCreditsText));
@@ -241,7 +250,7 @@ public class TalogramSettingsActivity extends BaseFragment {
             if (position == ROW_FEATURES_HEADER || position == ROW_LOCAL_HEADER || position == ROW_CREDITS_HEADER) {
                 return TYPE_HEADER;
             }
-            if (position == ROW_QUICK_REPLIES) {
+            if (position == ROW_QUICK_REPLIES || position == ROW_DEBUG_LOG) {
                 return TYPE_VALUE;
             }
             if (position == ROW_CREDITS) {

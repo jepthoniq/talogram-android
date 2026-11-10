@@ -1294,4 +1294,15 @@
     <string name="JokerSubscribeMessage">لتفعيل ميزات جوكر، يرجى الانضمام إلى قناة @aljokeruserbot ثم المحاولة مرة أخرى.</string>
     <string name="JokerJoinChannel">انضم إلى القناة</string>
     <string name="JokerCheckAgain">تحقق مرة أخرى</string>
+    <string name="JokerDebugLog">سجل الأخطاء</string>
+    <string name="JokerDebugLogInfo">الأعطال والأخطاء الواردة من هذا الجهاز. انسخه وأرسله للمطوّر.</string>
+    <string name="JokerCopyLog">نسخ السجل</string>
+    <string name="JokerClearLog">مسح السجل</string>
+    <string name="JokerLogCopied">تم نسخ السجل - الصقه في رسالتك لي</string>
+    <string name="JokerLogCleared">تم مسح السجل</string>
+    <string name="JokerLogEmpty">لا توجد أخطاء مسجلة حتى الآن</string>
+    <string name="JokerErrorsToggle">عرض الأخطاء داخل التطبيق</string>
+    <string name="JokerErrorsToastOn">ستظهر رسائل الأخطاء كإشعارات داخل التطبيق</string>
+    <string name="JokerErrorsToastOff">لن تظهر رسائل الأخطاء</string>
+    <string name="JokerLoginRetry">لم يصل رد من الخادم. تحقق من الاتصال وحاول مرة أخرى.</string>
 </resources>

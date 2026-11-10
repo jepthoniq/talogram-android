@@ -352,6 +352,20 @@ public class ApplicationLoader extends Application {
 
         applicationHandler = new Handler(applicationContext.getMainLooper());
 
+        final Thread.UncaughtExceptionHandler previousHandler = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+            try {
+                TalogramLog.logFull("uncaught", "crash on " + (thread == null ? "unknown" : thread.getName()), throwable);
+            } catch (Throwable ignored) {
+            }
+            if (previousHandler != null) {
+                previousHandler.uncaughtException(thread, throwable);
+            } else {
+                RuntimeException runtime = new RuntimeException(throwable);
+                Thread.currentThread().getThreadGroup().uncaughtException(Thread.currentThread(), runtime);
+            }
+        });
+
         AndroidUtilities.runOnUIThread(ApplicationLoader::startPushService);
 
         LauncherIconController.tryFixLauncherIconIfNeeded();

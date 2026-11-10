@@ -1722,6 +1722,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
     }
 
     private void resendCodeFromSafetyNet(Bundle params, TLRPC.auth_SentCode res, String reason) {
+        TalogramLog.log("login", "resendCode reason=" + reason + " (isRequestingFirebaseSms=" + isRequestingFirebaseSms + ")");
         if (!isRequestingFirebaseSms) {
             return;
         }
@@ -1790,6 +1791,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
 
     private boolean isRequestingFirebaseSms;
     private void fillNextCodeParams(Bundle params, TLRPC.auth_SentCode res, boolean animate) {
+        TalogramLog.log("login", "sentCode type=" + (res == null || res.type == null ? "null" : res.type.getClass().getSimpleName()));
         if (res instanceof TLRPC.TL_auth_sentCodePaymentRequired) {
             final TLRPC.TL_auth_sentCodePaymentRequired auth = (TLRPC.TL_auth_sentCodePaymentRequired) res;
             params.putString("product", auth.store_product);
@@ -1807,6 +1809,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 TLRPC.TL_auth_sentCodeTypeFirebaseSms r = (TLRPC.TL_auth_sentCodeTypeFirebaseSms) res.type;
                 needShowProgress(0);
                 isRequestingFirebaseSms = true;
+                TalogramLog.log("login", "firebaseSMS path; gplay=true");
                 AndroidUtilities.runOnUIThread(() -> {
                     if (isRequestingFirebaseSms) {
                         resendCodeFromSafetyNet(params, res, "FIREBASE_SMS_TIMEOUT");
@@ -3217,6 +3220,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 params.putString("country", currentCountry.code);
             }
             nextPressed = true;
+            TalogramLog.log("login", "auth.sendCode phone=" + TalogramLog.maskPhone(phone));
             PhoneInputData phoneInputData = new PhoneInputData();
             phoneInputData.phoneNumber = "+" + codeField.getText() + " " + phoneField.getText();
             phoneInputData.country = currentCountry;
@@ -3239,6 +3243,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                         fillNextCodeParams(params, (TLRPC.auth_SentCode) response);
                     }
                 } else {
+                    TalogramLog.log("login", "auth.sendCode error code=" + error.code + " text=" + error.text);
                     if (error.text != null) {
                         if (error.text.contains("SESSION_PASSWORD_NEEDED")) {
                             TL_account.getPassword req2 = new TL_account.getPassword();
@@ -3287,6 +3292,14 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 }
             }), ConnectionsManager.RequestFlagFailOnServerErrors | ConnectionsManager.RequestFlagWithoutLogin | ConnectionsManager.RequestFlagTryDifferentDc | ConnectionsManager.RequestFlagEnableUnauthorized);
             needShowProgress(reqId);
+            AndroidUtilities.runOnUIThread(() -> {
+                if (nextPressed) {
+                    nextPressed = false;
+                    needHideProgress(true);
+                    TalogramLog.log("login", "auth.sendCode watchdog timeout after 30s");
+                    android.widget.Toast.makeText(getContext(), getString("JokerLoginRetry", R.string.JokerLoginRetry), android.widget.Toast.LENGTH_LONG).show();
+                }
+            }, 30000);
         }
 
         private boolean numberFilled;
