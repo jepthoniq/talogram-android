@@ -244,6 +244,7 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
     public final View liveCommentsShadowView;
     private CaptionContainerView storyEditCaptionView;
     private final ImageView shareButton;
+    private ImageView downloadButton;
     @Nullable
     private ImageView repostButton;
     private final LinearLayout bottomActionsLinearLayout;
@@ -1191,6 +1192,17 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
         shareButton.setContentDescription(getString(R.string.ShareFile));
         ScaleStateListAnimator.apply(shareButton);
 
+        downloadButton = new ImageView(context);
+        downloadButton.setImageResource(R.drawable.msg_download);
+        downloadButton.setPadding(padding, padding, padding, padding);
+        downloadButton.setColorFilter(new PorterDuffColorFilter(0xFFFFFFFF, PorterDuff.Mode.SRC_IN));
+        downloadButton.setScaleType(ImageView.ScaleType.CENTER);
+        downloadButton.setOnClickListener(v -> {
+            downloadAndSaveStory();
+        });
+        downloadButton.setContentDescription(getString(R.string.SaveImage));
+        ScaleStateListAnimator.apply(downloadButton);
+
         if (!DISABLE_STORY_REPOSTING) {
             repostButton = new ImageView(context);
             repostButton.setImageDrawable(sharedResources.repostDrawable);
@@ -1316,6 +1328,7 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
         bottomActionsLinearLayout = new LinearLayout(context);
         bottomActionsLinearLayout.setOrientation(LinearLayout.HORIZONTAL);
         bottomActionsLinearLayout.setLayoutTransition(layoutTransition);
+        bottomActionsLinearLayout.addView(downloadButton, LayoutHelper.createLinear(40, 40, Gravity.RIGHT));
         bottomActionsLinearLayout.addView(shareButton, LayoutHelper.createLinear(40, 40, Gravity.RIGHT));
         if (repostButtonContainer != null) {
             bottomActionsLinearLayout.addView(repostButtonContainer, LayoutHelper.createLinear(40, 40, Gravity.RIGHT));
@@ -3732,6 +3745,50 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
         return true;
     }
 
+    private void downloadAndSaveStory() {
+        if (currentStory.storyItem == null && currentStory.uploadingStory == null) {
+            return;
+        }
+        final TL_stories.StoryItem storyItem = currentStory.storyItem;
+        if (storyItem == null || storyItem instanceof TL_stories.TL_storyItemSkipped) {
+            saveToGallery();
+            return;
+        }
+        File file = currentStory.getPath();
+        if (file != null && file.exists() && file.length() > 0) {
+            saveToGallery();
+            return;
+        }
+        storyItem.dialogId = dialogId;
+        if (storyItem.media != null && MessageObject.isVideoDocument(storyItem.media.getDocument())) {
+            FileLoader.getInstance(currentAccount).loadFile(StoriesController.getStoryVideoDocument(currentAccount, storyItem), storyItem, FileLoader.PRIORITY_HIGH, 1);
+        } else if (storyItem.media != null && storyItem.media.photo != null) {
+            TLRPC.PhotoSize size = FileLoader.getClosestPhotoSizeWithSize(storyItem.media.photo.sizes, Integer.MAX_VALUE);
+            FileLoader.getInstance(currentAccount).loadFile(ImageLocation.getForPhoto(size, storyItem.media.photo), storyItem, "jpg", FileLoader.PRIORITY_HIGH, 1);
+        } else {
+            saveToGallery();
+            return;
+        }
+        final int[] attempts = {0};
+        final Runnable retry = new Runnable() {
+            @Override
+            public void run() {
+                File f = currentStory.getPath();
+                if (f != null && f.exists() && f.length() > 0) {
+                    saveToGallery();
+                    return;
+                }
+                attempts[0]++;
+                if (attempts[0] >= 90) {
+                    BulletinFactory.of(storyContainer, resourcesProvider).createSimpleBulletin(R.raw.error, getString(R.string.UnknownError)).show();
+                    return;
+                }
+                AndroidUtilities.runOnUIThread(this, 1000);
+            }
+        };
+        AndroidUtilities.runOnUIThread(retry, 1000);
+    }
+
     private void saveToGallery() {
         if (currentStory.storyItem == null && currentStory.uploadingStory == null) {
             return;
@@ -5520,12 +5577,14 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
         }
         if (isChannel) {
             shareButton.setVisibility(allowShare && !currentStory.isLive ? View.VISIBLE : View.INVISIBLE);
+            downloadButton.setVisibility(!unsupported && !currentStory.isLive ? View.VISIBLE : View.GONE);
             if (repostButtonContainer != null) {
                 repostButtonContainer.setVisibility(allowRepost && !currentStory.isLive ? View.VISIBLE : View.GONE);
             }
             likeButtonContainer.setVisibility(!isFailed && !currentStory.isLive ? View.VISIBLE : View.GONE);
         } else {
             shareButton.setVisibility(allowShare && !currentStory.isLive ? View.VISIBLE : View.INVISIBLE);
+            downloadButton.setVisibility(!unsupported && !currentStory.isLive ? View.VISIBLE : View.GONE);
             if (repostButtonContainer != null) {
                 repostButtonContainer.setVisibility(View.GONE);
             }
@@ -7598,6 +7657,9 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
             }
         }
         shareButton.setAlpha(hideInterfaceAlpha * (1f - progressToDismissLocal) * (1f - outT));
+        if (downloadButton != null) {
+            downloadButton.setAlpha(hideInterfaceAlpha * (1f - progressToDismissLocal) * (1f - outT));
+        }
         likeButtonContainer.setAlpha(hideInterfaceAlpha * (1f - progressToDismissLocal) * (1f - outT));
         if (repostButtonContainer != null) {
             repostButtonContainer.setAlpha(hideInterfaceAlpha * (1f - progressToDismissLocal) * (1f - outT));
@@ -8386,6 +8448,9 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
             }
             if (shareButton != null) {
                 shareButton.setAlpha(hideInterfaceAlpha * (1f - progressToDismissLocal) * (1f - outT));
+        if (downloadButton != null) {
+            downloadButton.setAlpha(hideInterfaceAlpha * (1f - progressToDismissLocal) * (1f - outT));
+        }
             }
             if (repostButtonContainer != null) {
                 repostButtonContainer.setAlpha(hideInterfaceAlpha * (1f - progressToDismissLocal) * (1f - outT));
@@ -8424,6 +8489,9 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
                 }
                 if (shareButton != null) {
                     shareButton.setAlpha(hideInterfaceAlpha * (1f - progressToDismissLocal) * (1f - outT));
+        if (downloadButton != null) {
+            downloadButton.setAlpha(hideInterfaceAlpha * (1f - progressToDismissLocal) * (1f - outT));
+        }
                 }
                 if (repostButtonContainer != null) {
                     repostButtonContainer.setAlpha(hideInterfaceAlpha * (1f - progressToDismissLocal) * (1f - outT));
