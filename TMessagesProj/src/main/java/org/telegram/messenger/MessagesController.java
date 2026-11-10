@@ -9400,6 +9400,9 @@ public class MessagesController extends BaseController implements NotificationCe
                 getMessagesStorage().markMessagesAsDeleted(dialogId, messages, true, forAll, 0, topicId);
                 getMessagesStorage().updateDialogsWithDeletedMessages(dialogId, channelId, messages, null);
             }
+            if (!cacheOnly) {
+                TalogramSettings.removeKeptDeletedMessages(dialogId, messages);
+            }
             getNotificationCenter().postNotificationName(NotificationCenter.messagesDeleted, messages, channelId, scheduled, false, movedToScheduled, movedToScheduledMessageId);
         } else {
             if (taskRequest instanceof TLRPC.TL_channels_deleteMessages) {
@@ -21135,6 +21138,27 @@ public class MessagesController extends BaseController implements NotificationCe
         LongSparseArray<ArrayList<Integer>> scheduledDeletedMessagesFinal = scheduledDeletedMessages;
         LongSparseArray<ArrayList<Integer>> scheduledDeletedMessagesSentFinal = scheduledDeletedMessagesSent;
         LongSparseIntArray clearHistoryMessagesFinal = clearHistoryMessages;
+        if (deletedMessages != null && TalogramSettings.isKeepDeletedMessages() && (!TalogramSubscription.isGateEnabled() || TalogramSubscription.isSubscribedCached())) {
+            for (int a = 0, size = deletedMessages.size(); a < size; a++) {
+                long key = deletedMessages.keyAt(a);
+                ArrayList<Integer> arrayList = deletedMessages.valueAt(a);
+                if (arrayList == null || arrayList.isEmpty()) {
+                    continue;
+                }
+                if (key == 0) {
+                    for (int b = 0, size2 = arrayList.size(); b < size2; b++) {
+                        MessageObject obj = dialogMessagesByIds.get(arrayList.get(b));
+                        if (obj != null) {
+                            ArrayList<Integer> keptIds = new ArrayList<>();
+                            keptIds.add(arrayList.get(b));
+                            TalogramSettings.recordKeptDeletedMessages(obj.getDialogId(), keptIds);
+                        }
+                    }
+                } else {
+                    TalogramSettings.recordKeptDeletedMessages(key, arrayList);
+                }
+            }
+        }
         getMessagesStorage().getStorageQueue().postRunnable(() -> AndroidUtilities.runOnUIThread(() -> {
             int updateMask = 0;
             if (markAsReadMessagesInboxFinal != null || markAsReadMessagesOutboxFinal != null) {
@@ -21344,8 +21368,19 @@ public class MessagesController extends BaseController implements NotificationCe
                 ArrayList<Integer> arrayList = deletedMessages.valueAt(a);
                 if (keepDeleted) {
                     // Talogram mod: keep deleted messages locally instead of wiping them
-                    TalogramSettings.recordKeptDeletedMessages(key, arrayList);
-                    continue;
+                    if (key != 0) {
+                        continue;
+                    }
+                    boolean anyResolved = false;
+                    for (int b = 0, size2 = arrayList.size(); b < size2; b++) {
+                        if (dialogMessagesByIds.get(arrayList.get(b)) != null) {
+                            anyResolved = true;
+                            break;
+                        }
+                    }
+                    if (anyResolved) {
+                        continue;
+                    }
                 }
                 getMessagesStorage().getStorageQueue().postRunnable(() -> {
                     ArrayList<Long> dialogIds = getMessagesStorage().markMessagesAsDeleted(key, arrayList, false, true, 0, 0);

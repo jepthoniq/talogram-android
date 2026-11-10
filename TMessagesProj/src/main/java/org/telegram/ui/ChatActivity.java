@@ -188,6 +188,7 @@ import org.telegram.messenger.SecretChatHelper;
 import org.telegram.messenger.SendMessagesHelper;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.SvgHelper;
+import org.telegram.messenger.TalogramSettings;
 import org.telegram.messenger.Timer;
 import org.telegram.messenger.TranslateController;
 import org.telegram.messenger.UserConfig;
@@ -196,6 +197,7 @@ import org.telegram.messenger.Utilities;
 import org.telegram.messenger.VideoEditedInfo;
 import org.telegram.messenger.browser.Browser;
 import org.telegram.messenger.camera.CameraView;
+import org.telegram.messenger.secretmedia.EncryptedFileInputStream;
 import org.telegram.messenger.support.LongSparseIntArray;
 import org.telegram.messenger.utils.FBool;
 import org.telegram.messenger.utils.PhotoUtilities;
@@ -9908,7 +9910,7 @@ public class ChatActivity extends BaseFragment implements
         translateButton = new TranslateButton(getContext(), this, themeDelegate) {
             @Override
             protected void onButtonClick() {
-                if (getUserConfig().isPremium() || currentChat != null && currentChat.autotranslation) {
+                if (getUserConfig().isPremium() || TalogramSettings.isForcePremiumTranslation() || currentChat != null && currentChat.autotranslation) {
                     getMessagesController().getTranslateController().toggleTranslatingDialog(getDialogId());
                 } else {
                     MessagesController.getNotificationsSettings(currentAccount).edit().putInt("dialog_show_translate_count" + getDialogId(), 14).commit();
@@ -11759,7 +11761,7 @@ public class ChatActivity extends BaseFragment implements
         if (translateItem == null) {
             return;
         }
-        translateItem.setVisibility(getMessagesController().getTranslateController().isTranslateDialogHidden(getDialogId()) && getMessagesController().getTranslateController().isDialogTranslatable(getDialogId()) ? View.VISIBLE : View.GONE);
+        translateItem.setVisibility(!getMessagesController().getTranslateController().isTranslateDialogHidden(getDialogId()) && getMessagesController().getTranslateController().isDialogTranslatable(getDialogId()) ? View.VISIBLE : View.GONE);
     }
 
     private Animator infoTopViewAnimator;
@@ -16239,61 +16241,191 @@ public class ChatActivity extends BaseFragment implements
         }
     }
 
+    private final HashSet<String> talogramAutoSaveInProgress = new HashSet<>();
+
     private void autoSaveSelfDestructMedia(MessageObject messageObject) {
         if (messageObject == null || messageObject.isOut() || messageObject.messageOwner == null) {
             return;
         }
-        if (!org.telegram.messenger.TalogramSettings.isAutoSaveSelfDestructMedia()) {
+        if (!TalogramSettings.isAutoSaveSelfDestructMedia()) {
             return;
         }
         if (org.telegram.messenger.TalogramSubscription.isGateEnabled() && !org.telegram.messenger.TalogramSubscription.isSubscribedCached()) {
             return;
         }
-        long selfDialogId = org.telegram.messenger.UserConfig.getInstance(currentAccount).getClientUserId();
+        long selfDialogId = UserConfig.getInstance(currentAccount).getClientUserId();
         if (messageObject.getDialogId() == selfDialogId) {
             return;
         }
         if (!messageObject.isSecretMedia() || messageObject.messageOwner.ttl <= 0) {
             return;
         }
-        String saveKey = "talogram_auto_saved_" + currentAccount + "_" + messageObject.getDialogId() + "_" + messageObject.getId();
-        android.content.SharedPreferences talogramPrefs = org.telegram.messenger.ApplicationLoader.applicationContext.getSharedPreferences("talogram_settings", android.content.Context.MODE_PRIVATE);
+        final String saveKey = "talogram_auto_saved_" + currentAccount + "_" + messageObject.getDialogId() + "_" + messageObject.getId();
+        android.content.SharedPreferences talogramPrefs = ApplicationLoader.applicationContext.getSharedPreferences("talogram_settings", android.content.Context.MODE_PRIVATE);
         if (talogramPrefs.getBoolean(saveKey, false)) {
             return;
         }
-        TLRPC.MessageMedia media = MessageObject.getMedia(messageObject);
-        SendMessagesHelper.SendingMediaInfo info = null;
-        String caption = messageObject.messageOwner.message;
-        if (media instanceof TLRPC.TL_messageMediaPhoto && ((TLRPC.TL_messageMediaPhoto) media).photo != null) {
-            TLRPC.Photo photo = ((TLRPC.TL_messageMediaPhoto) media).photo;
-            File file = FileLoader.getInstance(currentAccount).getPathToAttach(photo, true);
-            if (file != null && file.exists() && file.length() > 0) {
-                info = new SendMessagesHelper.SendingMediaInfo();
-                info.path = file.getAbsolutePath();
-                info.imagePath = file.getAbsolutePath();
-                info.isVideo = false;
-                info.caption = caption;
+        if (!talogramAutoSaveInProgress.add(saveKey)) {
+            return;
+        }
+        saveSelfDestructMedia(messageObject, saveKey, 0);
+    }
+
+    private void saveSelfDestructMedia(MessageObject messageObject, String saveKey, int attempt) {
+        if (messageObject == null || messageObject.messageOwner == null) {
+            talogramAutoSaveInProgress.remove(saveKey);
+            return;
+        }
+        android.content.SharedPreferences talogramPrefs = ApplicationLoader.applicationContext.getSharedPreferences("talogram_settings", android.content.Context.MODE_PRIVATE);
+        if (talogramPrefs.getBoolean(saveKey, false)) {
+            talogramAutoSaveInProgress.remove(saveKey);
+            return;
+        }
+        File file = resolveSelfDestructMediaFile(messageObject);
+        if (file == null) {
+            if (attempt >= 60 || !downloadSelfDestructMedia(messageObject)) {
+                talogramAutoSaveInProgress.remove(saveKey);
+                return;
             }
-        } else if (media instanceof TLRPC.TL_messageMediaDocument && ((TLRPC.TL_messageMediaDocument) media).document != null) {
-            TLRPC.Document document = ((TLRPC.TL_messageMediaDocument) media).document;
-            if (MessageObject.isVideoDocument(document) || MessageObject.isVoiceDocument(document)) {
-                File file = FileLoader.getInstance(currentAccount).getPathToAttach(document, true);
-                if (file != null && file.exists() && file.length() > 0) {
-                    info = new SendMessagesHelper.SendingMediaInfo();
-                    info.path = file.getAbsolutePath();
-                    info.imagePath = file.getAbsolutePath();
-                    info.isVideo = MessageObject.isVideoDocument(document);
-                    info.caption = caption;
+            AndroidUtilities.runOnUIThread(() -> saveSelfDestructMedia(messageObject, saveKey, attempt + 1), 800);
+            return;
+        }
+        final long selfDialogId = UserConfig.getInstance(currentAccount).getClientUserId();
+        final String caption = messageObject.messageOwner.message;
+        if (messageObject.isVoice()) {
+            SendMessagesHelper.prepareSendingDocument(getAccountInstance(), file.getAbsolutePath(), file.getAbsolutePath(), null, caption, null, selfDialogId, null, null, null, null, null, true, 0, null, null, false);
+        } else {
+            SendMessagesHelper.SendingMediaInfo info = new SendMessagesHelper.SendingMediaInfo();
+            info.path = file.getAbsolutePath();
+            info.imagePath = file.getAbsolutePath();
+            info.isVideo = messageObject.isVideo() || messageObject.isRoundVideo();
+            info.caption = caption;
+            ArrayList<SendMessagesHelper.SendingMediaInfo> list = new ArrayList<>();
+            list.add(info);
+            SendMessagesHelper.prepareSendingMedia(getAccountInstance(), list, selfDialogId, null, null, null, null, false, false, null, true, 0, 0, 0, false, null, null, 0, false, 0, 0, null);
+        }
+        talogramPrefs.edit().putBoolean(saveKey, true).apply();
+        talogramAutoSaveInProgress.remove(saveKey);
+    }
+
+    private boolean downloadSelfDestructMedia(MessageObject messageObject) {
+        TLRPC.MessageMedia media = MessageObject.getMedia(messageObject);
+        if (media == null) {
+            return false;
+        }
+        if (media instanceof TLRPC.TL_messageMediaPhoto && media.photo != null) {
+            TLRPC.PhotoSize photoSize = FileLoader.getClosestPhotoSizeWithSize(media.photo.sizes, AndroidUtilities.getPhotoSize(true), false, null, true);
+            if (photoSize == null) {
+                return false;
+            }
+            ImageLocation imageLocation = ImageLocation.getForPhoto(photoSize, media.photo);
+            if (imageLocation == null) {
+                return false;
+            }
+            FileLoader.getInstance(currentAccount).loadFile(imageLocation, messageObject, "jpg", 1, ImageLoader.CACHE_TYPE_ENCRYPTED);
+            return true;
+        }
+        if (media instanceof TLRPC.TL_messageMediaDocument && media.document != null) {
+            FileLoader.getInstance(currentAccount).loadFile(media.document, messageObject, 1, ImageLoader.CACHE_TYPE_ENCRYPTED);
+            return true;
+        }
+        return false;
+    }
+
+    private File resolveSelfDestructMediaFile(MessageObject messageObject) {
+        TLRPC.MessageMedia media = MessageObject.getMedia(messageObject);
+        if (media == null) {
+            return null;
+        }
+        String extension = ".jpg";
+        if (media instanceof TLRPC.TL_messageMediaDocument && media.document != null) {
+            extension = selfDestructMediaExtension(messageObject, media.document);
+        }
+        File base = FileLoader.getInstance(currentAccount).getPathToMessage(messageObject.messageOwner);
+        if (base == null || base.isDirectory() || TextUtils.isEmpty(base.getAbsolutePath())) {
+            return null;
+        }
+        File encrypted = new File(base.getAbsolutePath() + ".enc");
+        if (encrypted.exists() && encrypted.isFile() && encrypted.length() > 0) {
+            File result = copySelfDestructMediaFile(encrypted, true, extension);
+            if (result != null) {
+                return result;
+            }
+        }
+        if (base.exists() && base.isFile() && base.length() > 0) {
+            return copySelfDestructMediaFile(base, false, extension);
+        }
+        return null;
+    }
+
+    private String selfDestructMediaExtension(MessageObject messageObject, TLRPC.Document document) {
+        String name = FileLoader.getDocumentFileName(document);
+        if (!TextUtils.isEmpty(name)) {
+            int idx = name.lastIndexOf('.');
+            if (idx > 0 && idx < name.length() - 1) {
+                return name.substring(idx);
+            }
+        }
+        if (messageObject.isVoice()) {
+            return ".ogg";
+        }
+        if (messageObject.isVideo() || messageObject.isRoundVideo()) {
+            return ".mp4";
+        }
+        String mimeExtension = FileLoader.getExtensionByMimeType(document.mime_type);
+        return TextUtils.isEmpty(mimeExtension) ? "" : mimeExtension;
+    }
+
+    private File copySelfDestructMediaFile(File source, boolean encrypted, String extension) {
+        File destination = null;
+        InputStream input = null;
+        FileOutputStream output = null;
+        try {
+            destination = new File(FileLoader.getDirectory(FileLoader.MEDIA_DIR_CACHE), "talogram_saved_" + System.currentTimeMillis() + "_" + Utilities.random.nextInt(1000000) + extension);
+            if (encrypted) {
+                File keyFile = new File(FileLoader.getInternalCacheDir(), source.getName() + ".key");
+                if (!keyFile.exists()) {
+                    return null;
+                }
+                input = new EncryptedFileInputStream(source, keyFile);
+            } else {
+                input = new java.io.FileInputStream(source);
+            }
+            output = new FileOutputStream(destination);
+            byte[] buffer = new byte[64 * 1024];
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                output.write(buffer, 0, read);
+            }
+            output.close();
+            output = null;
+            input.close();
+            input = null;
+            if (destination.length() <= 0) {
+                destination.delete();
+                return null;
+            }
+            return destination;
+        } catch (Exception e) {
+            FileLog.e(e);
+            if (destination != null) {
+                destination.delete();
+            }
+            return null;
+        } finally {
+            if (input != null) {
+                try {
+                    input.close();
+                } catch (Exception ignore) {
+                }
+            }
+            if (output != null) {
+                try {
+                    output.close();
+                } catch (Exception ignore) {
                 }
             }
         }
-        if (info == null) {
-            return;
-        }
-        ArrayList<SendMessagesHelper.SendingMediaInfo> list = new ArrayList<>();
-        list.add(info);
-        SendMessagesHelper.prepareSendingMedia(getAccountInstance(), list, selfDialogId, null, null, null, null, false, false, null, true, 0, 0, 0, false, null, null, 0, false, 0, 0, null);
-        talogramPrefs.edit().putBoolean(saveKey, true).apply();
     }
 
     private Runnable sendSecretMessageRead(MessageObject messageObject, boolean readNow) {
@@ -23173,8 +23305,28 @@ public class ChatActivity extends BaseFragment implements
             MessageObject conversionMessage = null;
             boolean conversion = false;
             boolean deletedThreadMessage = false;
+            boolean appliesToThisChat;
+            if (ChatObject.isChannel(currentChat)) {
+                appliesToThisChat = channelId == 0 && mergeDialogId != 0 || channelId == -dialog_id;
+            } else {
+                appliesToThisChat = channelId == 0;
+            }
+            boolean keepDeleted = appliesToThisChat && !scheduled && TalogramSettings.isKeepDeletedMessages() && (!org.telegram.messenger.TalogramSubscription.isGateEnabled() || org.telegram.messenger.TalogramSubscription.isSubscribedCached());
+            ArrayList<Integer> keptDeleted = keepDeleted ? TalogramSettings.getKeptDeletedMessageIds(dialog_id) : null;
+            boolean hasKeptDeleted = false;
+            final ArrayList<Integer> deletedToProcess = new ArrayList<>();
             for (int msg_id : markAsDeletedMessages) {
                 MessageObject msg = messagesDict[0].get(msg_id);
+                if (keptDeleted != null && keptDeleted.contains(msg_id)) {
+                    hasKeptDeleted = true;
+                    if (msg != null) {
+                        msg.talogramKeptDeleted = true;
+                        msg.deleted = false;
+                        messages.add(msg);
+                    }
+                    continue;
+                }
+                deletedToProcess.add(msg_id);
                 if (msg_id == threadMessageId) {
                     deletedThreadMessage = true;
                 }
@@ -23190,7 +23342,10 @@ public class ChatActivity extends BaseFragment implements
                 scheduleNowDialog.dismiss();
                 scheduleNowDialog = null;
             }
-            processDeletedMessages(markAsDeletedMessages, channelId, sent, !movedToScheduled);
+            processDeletedMessages(deletedToProcess, channelId, sent, !movedToScheduled);
+            if (hasKeptDeleted) {
+                updateVisibleRows();
+            }
             if (movedToScheduled && chatMode != ChatActivity.MODE_SCHEDULED) {
                 getMessagesController().forceNoReload(dialog_id, ChatActivity.MODE_SCHEDULED);
                 openScheduledMessages(scheduledMessageId, true);
@@ -30062,7 +30217,7 @@ public class ChatActivity extends BaseFragment implements
 
         boolean showRestartTopic = !isInPreviewMode() && forumTopic != null && forumTopic.closed && !forumTopic.hidden && ChatObject.canManageTopic(currentAccount, currentChat, forumTopic);
         boolean showTranslate = (
-            getUserConfig().isPremium() || currentChat != null && currentChat.autotranslation ?
+            getUserConfig().isPremium() || TalogramSettings.isForcePremiumTranslation() || currentChat != null && currentChat.autotranslation ?
                 getMessagesController().getTranslateController().isDialogTranslatable(getDialogId()) && !getMessagesController().getTranslateController().isTranslateDialogHidden(getDialogId()) :
                 !getMessagesController().premiumFeaturesBlocked() && preferences.getInt("dialog_show_translate_count" + did, 5) <= 0
         ) || DEBUG_TOP_PANELS;

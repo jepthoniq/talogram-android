@@ -110,6 +110,9 @@ public class TranslateController extends BaseController {
     private Boolean contextTranslateEnabled;
 
     public boolean isChatTranslateEnabled() {
+        if (TalogramSettings.isForcePremiumTranslation()) {
+            return true;
+        }
         if (!getMessagesController().isTranslationsAutoEnabled()) {
             return false;
         }
@@ -120,6 +123,9 @@ public class TranslateController extends BaseController {
     }
 
     public boolean isContextTranslateEnabled() {
+        if (TalogramSettings.isForcePremiumTranslation()) {
+            return true;
+        }
         if (!getMessagesController().isTranslationsManualEnabled()) {
             return false;
         }
@@ -194,7 +200,7 @@ public class TranslateController extends BaseController {
 
     public boolean isDialogTranslatable(long dialogId) {
         return (
-            translatableDialogs.contains(dialogId) &&
+            (TalogramSettings.isForcePremiumTranslation() || translatableDialogs.contains(dialogId)) &&
             isFeatureAvailable(dialogId) &&
             !DialogObject.isEncryptedDialog(dialogId) &&
             getUserConfig().getClientUserId() != dialogId
@@ -203,6 +209,9 @@ public class TranslateController extends BaseController {
     }
 
     public boolean isTranslateDialogHidden(long dialogId) {
+        if (TalogramSettings.isForcePremiumTranslation()) {
+            return false;
+        }
         if (hideTranslateDialogs.contains(dialogId)) {
             return true;
         }

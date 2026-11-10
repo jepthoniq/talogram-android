@@ -1,4 +1,4 @@
-package org.telegram.ui.Components;
+﻿package org.telegram.ui.Components;
 
 import static org.telegram.messenger.AndroidUtilities.dp;
 import static org.telegram.messenger.AndroidUtilities.dpf2;
@@ -37,6 +37,7 @@ import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
+import org.telegram.messenger.TalogramSettings;
 import org.telegram.messenger.TranslateController;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
@@ -116,7 +117,7 @@ public class TranslateButton extends FrameLayout implements Theme.Colorable {
         menuView.setImageResource(R.drawable.msg_mini_customize);
         menuView.setOnClickListener(e -> {
             final TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(-dialogId);
-            if (UserConfig.getInstance(currentAccount).isPremium() || chat != null && chat.autotranslation) {
+            if (UserConfig.getInstance(currentAccount).isPremium() || TalogramSettings.isForcePremiumTranslation() || chat != null && chat.autotranslation) {
                 onMenuClick();
             } else {
                 onCloseClick();
@@ -317,7 +318,7 @@ public class TranslateButton extends FrameLayout implements Theme.Colorable {
             popupLayout.getSwipeBack().openForeground(swipeBackIndex);
         });
 
-        if (UserConfig.getInstance(currentAccount).isPremium() && detectedLanguageNameAccusative != null) {
+        if ((UserConfig.getInstance(currentAccount).isPremium() || TalogramSettings.isForcePremiumTranslation()) && detectedLanguageNameAccusative != null) {
             final ActionBarMenuSubItem dontTranslateButton = new ActionBarMenuSubItem(getContext(), false, false, resourcesProvider);
             String text;
             if (accusative[0]) {
@@ -432,7 +433,7 @@ public class TranslateButton extends FrameLayout implements Theme.Colorable {
             }
             textView.setText(TextUtils.concat(translateIcon, " ", text));
         }
-        menuView.setImageResource(UserConfig.getInstance(currentAccount).isPremium() || chat != null && chat.autotranslation ? R.drawable.msg_mini_customize : R.drawable.msg_close);
+        menuView.setImageResource(UserConfig.getInstance(currentAccount).isPremium() || TalogramSettings.isForcePremiumTranslation() || chat != null && chat.autotranslation ? R.drawable.msg_mini_customize : R.drawable.msg_close);
     }
 
     public static void showCocoonAlert(Context context, Theme.ResourcesProvider resourcesProvider) {
@@ -528,3 +529,4 @@ public class TranslateButton extends FrameLayout implements Theme.Colorable {
         sheet[0].show();
     }
 }
+

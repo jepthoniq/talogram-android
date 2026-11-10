@@ -16,6 +16,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -140,6 +142,67 @@ public final class TalogramSettings {
             p.edit().putString(key, arr.toString()).apply();
         } catch (Exception e) {
             FileLog.e(e);
+        }
+        synchronized (keptDeletedCache) {
+            keptDeletedCache.remove(dialogId);
+        }
+    }
+
+    private static final HashMap<Long, HashSet<Integer>> keptDeletedCache = new HashMap<>();
+
+    private static HashSet<Integer> keptDeletedSet(long dialogId) {
+        HashSet<Integer> cached = keptDeletedCache.get(dialogId);
+        if (cached != null) {
+            return cached;
+        }
+        HashSet<Integer> result = new HashSet<>();
+        android.content.SharedPreferences p = prefs();
+        if (p != null) {
+            try {
+                JSONArray arr = new JSONArray(p.getString("kept_deleted_" + dialogId, "[]"));
+                for (int i = 0; i < arr.length(); i++) {
+                    result.add(arr.getInt(i));
+                }
+            } catch (Exception e) {
+                FileLog.e(e);
+            }
+        }
+        keptDeletedCache.put(dialogId, result);
+        return result;
+    }
+
+    public static boolean isKeptDeletedMessage(long dialogId, int messageId) {
+        if (dialogId == 0 || messageId == 0) {
+            return false;
+        }
+        synchronized (keptDeletedCache) {
+            return keptDeletedSet(dialogId).contains(messageId);
+        }
+    }
+
+    public static ArrayList<Integer> getKeptDeletedMessageIds(long dialogId) {
+        synchronized (keptDeletedCache) {
+            return new ArrayList<>(keptDeletedSet(dialogId));
+        }
+    }
+
+    public static void removeKeptDeletedMessages(long dialogId, List<Integer> messageIds) {
+        if (dialogId == 0 || messageIds == null || messageIds.isEmpty()) {
+            return;
+        }
+        synchronized (keptDeletedCache) {
+            HashSet<Integer> set = keptDeletedSet(dialogId);
+            if (!set.removeAll(messageIds)) {
+                return;
+            }
+            android.content.SharedPreferences p = prefs();
+            if (p != null) {
+                JSONArray arr = new JSONArray();
+                for (Integer id : set) {
+                    arr.put(id);
+                }
+                p.edit().putString("kept_deleted_" + dialogId, arr.toString()).apply();
+            }
         }
     }
 

@@ -135,6 +135,7 @@ import org.telegram.messenger.RichQuote;
 import org.telegram.messenger.SendMessagesHelper;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.SvgHelper;
+import org.telegram.messenger.TalogramSettings;
 import org.telegram.messenger.TranslateController;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
@@ -6223,6 +6224,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             currentMessageObject = null;
         }
         messageObject.isOutOwnerCached = null;
+        messageObject.talogramKeptDeleted = TalogramSettings.isKeptDeletedMessage(messageObject.getDialogId(), messageObject.getId());
         boolean widthChanged = lastWidth != getParentWidth();
         lastHeight = AndroidUtilities.displaySize.y;
         lastWidth = getParentWidth();
@@ -17282,10 +17284,42 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         return right;
     }
 
+    private static Paint talogramKeptDeletedPaint;
+    private static Paint talogramKeptDeletedStrokePaint;
+
+    private void drawTalogramKeptDeleted(Canvas canvas) {
+        if (talogramKeptDeletedPaint == null) {
+            talogramKeptDeletedPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            talogramKeptDeletedPaint.setColor(0xF2DB2E2E);
+            talogramKeptDeletedStrokePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            talogramKeptDeletedStrokePaint.setColor(0xFFFFFFFF);
+            talogramKeptDeletedStrokePaint.setStyle(Paint.Style.STROKE);
+            talogramKeptDeletedStrokePaint.setStrokeWidth(dp(2));
+            talogramKeptDeletedStrokePaint.setStrokeCap(Paint.Cap.ROUND);
+        }
+        final int radius = dp(12);
+        int cx;
+        if (currentMessageObject.isOutOwner()) {
+            cx = getBackgroundDrawableLeft() - dp(28) + radius;
+        } else {
+            cx = getBackgroundDrawableRight() + dp(4) + radius;
+        }
+        int cy = (getBackgroundDrawableTop() + getBackgroundDrawableBottom()) / 2;
+        cx = Math.max(radius + dp(2), Math.min(getWidth() - radius - dp(2), cx));
+        cy = Math.max(radius + dp(2), Math.min(getHeight() - radius - dp(2), cy));
+        canvas.drawCircle(cx, cy, radius, talogramKeptDeletedPaint);
+        final float d = dp(4.5f);
+        canvas.drawLine(cx - d, cy - d, cx + d, cy + d, talogramKeptDeletedStrokePaint);
+        canvas.drawLine(cx - d, cy + d, cx + d, cy - d, talogramKeptDeletedStrokePaint);
+    }
+
     @SuppressLint("WrongCall")
     @Override
     protected void onDraw(Canvas canvas) {
         drawInternal(canvas);
+        if (currentMessageObject != null && currentMessageObject.talogramKeptDeleted) {
+            drawTalogramKeptDeleted(canvas);
+        }
     }
     public void drawInternal(Canvas canvas) {
         if (currentMessageObject == null) {
