@@ -11765,4 +11765,6 @@
     <string name="JokerCallBroadcastDownloadFirst">Download the media first, then tap again</string>
     <string name="JokerCallBroadcastFailed">Couldn\'t decode audio in this media</string>
     <string name="JokerCallBroadcastStarted">Broadcast started</string>
+    <string name="JokerVoiceModelDownloading">Downloading the Arabic speech recognition model (~100 MB)…</string>
+    <string name="JokerVoiceModelDownloadFailed">Couldn\'t download the speech recognition model. Try again.</string>
 </resources>
