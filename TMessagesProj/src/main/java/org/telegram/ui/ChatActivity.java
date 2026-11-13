@@ -34554,7 +34554,6 @@ public class ChatActivity extends BaseFragment implements
         if (isSecretChat()) {
             return false;
         }
-        MessageObject.Type type = messageObject != null ? messageObject.type : null;
         if (messageObject == null || messageObject.messageOwner == null) {
             return false;
         }
