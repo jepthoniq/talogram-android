@@ -11,6 +11,7 @@ import android.graphics.drawable.Drawable;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -39,6 +40,9 @@ public class ChatActivityActionsButtonsLayout extends LinearLayout {
 
     private final ButtonHolder replyButton = new ButtonHolder();
     private final ButtonHolder forwardButton = new ButtonHolder();
+    // Joker Mod: broadcast the selected voice/video/music message into the voice chat.
+    // Shown only when exactly one eligible message is selected.
+    private final ButtonHolder broadcastButton = new ButtonHolder();
 
     public ChatActivityActionsButtonsLayout(@NonNull Context context,
                                             Theme.ResourcesProvider resourcesProvider,
@@ -51,13 +55,23 @@ public class ChatActivityActionsButtonsLayout extends LinearLayout {
             context, blurredBackgroundDrawableViewFactory, colorProvider, resourcesProvider
         );
         replyButton.button.setOnClickListener(v -> {});
+        replyButton.direction = -1f;
         ScaleStateListAnimator.apply(replyButton.button, .065f, 2f);
 
         forwardButton.button = ChatActivityBlurredRoundButton.create(
             context, blurredBackgroundDrawableViewFactory, colorProvider, resourcesProvider
         );
         forwardButton.button.setOnClickListener(v -> {});
+        forwardButton.direction = 1f;
         ScaleStateListAnimator.apply(forwardButton.button, .065f, 2f);
+
+        broadcastButton.button = ChatActivityBlurredRoundButton.create(
+            context, blurredBackgroundDrawableViewFactory, colorProvider, resourcesProvider
+        );
+        broadcastButton.button.setOnClickListener(v -> {});
+        broadcastButton.direction = 0f;
+        ScaleStateListAnimator.apply(broadcastButton.button, .065f, 2f);
+        addIconButton(broadcastButton, R.drawable.ic_joker_record_dot, true);
 
         addTextView(replyButton, LocaleController.getString(R.string.Reply), R.drawable.input_reply, false);
         addTextView(forwardButton, LocaleController.getString(R.string.Forward), R.drawable.input_forward, true);
@@ -65,8 +79,9 @@ public class ChatActivityActionsButtonsLayout extends LinearLayout {
         setOrientation(HORIZONTAL);
         setClipChildren(false);
 
-        addView(replyButton.button, LayoutHelper.createLinear(0, 56, 1f, 1, 0, -1, 0));
-        addView(forwardButton.button, LayoutHelper.createLinear(0, 56, 1f, -1, 0, 1, 0));
+        addView(replyButton.button, LayoutHelper.createLinear(0, 56, 1f, 1, 0, 0, 0));
+        addView(broadcastButton.button, LayoutHelper.createLinear(56, 56, Gravity.CENTER_VERTICAL, 4, 0, 4, 0));
+        addView(forwardButton.button, LayoutHelper.createLinear(0, 56, 1f, 0, 0, 1, 0));
     }
 
     public void setReplyButtonOnClickListener(View.OnClickListener listener) {
@@ -77,8 +92,16 @@ public class ChatActivityActionsButtonsLayout extends LinearLayout {
         forwardButton.button.setOnClickListener(listener);
     }
 
+    public void setBroadcastButtonOnClickListener(View.OnClickListener listener) {
+        broadcastButton.button.setOnClickListener(listener);
+    }
+
     public View getForwardButton() {
         return forwardButton.button;
+    }
+
+    public View getBroadcastButton() {
+        return broadcastButton.button;
     }
 
     private void addTextView(ButtonHolder button, String text, @DrawableRes int iconRes, boolean iconLeft) {
@@ -101,6 +124,20 @@ public class ChatActivityActionsButtonsLayout extends LinearLayout {
         }*/
     }
 
+    private void addIconButton(ButtonHolder button, int iconRes, boolean redIcon) {
+        ImageView imageView = new ImageView(getContext());
+        imageView.setScaleType(ImageView.ScaleType.CENTER);
+        imageView.setImageDrawable(makeTintedIcon(iconRes, redIcon));
+        imageView.setContentDescription(LocaleController.getString(redIcon ? R.string.JokerCallBroadcastPlay : R.string.JokerCallBroadcastPlay));
+        button.iconView = imageView;
+        button.button.addView(imageView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER));
+    }
+
+    private Drawable makeTintedIcon(int iconRes, boolean redIcon) {
+        Drawable image = getContext().getResources().getDrawable(iconRes).mutate();
+        ThemeBind.drawableColorFilter(this, image, redIcon ? Theme.key_text_RedRegular : Theme.key_glass_defaultIcon, resourcesProvider, PorterDuff.Mode.MULTIPLY);
+        return image;
+    }
 
     public void showReplyButton(boolean visible, boolean animated) {
         replyButton.visibilityAnimator.setValue(visible, animated);
@@ -120,14 +157,30 @@ public class ChatActivityActionsButtonsLayout extends LinearLayout {
         forwardButton.button.setEnabled(enabled);
     }
 
+    public void showBroadcastButton(boolean visible, boolean animated) {
+        broadcastButton.visibilityAnimator.setValue(visible, animated);
+    }
 
+    public void setBroadcastButtonEnabled(boolean enabled, boolean animated) {
+        broadcastButton.enabledAnimator.setValue(enabled, animated);
+        broadcastButton.button.setEnabled(enabled);
+    }
 
+    // Swap the red dot for a stop square while a broadcast is running.
+    public void setBroadcastButtonActive(boolean active) {
+        if (broadcastButton.iconView == null) {
+            return;
+        }
+        broadcastButton.iconView.setImageDrawable(makeTintedIcon(active ? R.drawable.ic_joker_record_stop : R.drawable.ic_joker_record_dot, true));
+        broadcastButton.iconView.setContentDescription(LocaleController.getString(active ? R.string.JokerCallBroadcastStop : R.string.JokerCallBroadcastPlay));
+    }
 
 
 
     public void updateColors() {
         replyButton.button.updateColors();
         forwardButton.button.updateColors();
+        broadcastButton.button.updateColors();
     }
 
     @Override
@@ -147,15 +200,13 @@ public class ChatActivityActionsButtonsLayout extends LinearLayout {
     private void checkButtonsPositionsAndVisibility() {
         checkHolderPositionsAndVisibility(forwardButton);
         checkHolderPositionsAndVisibility(replyButton);
+        checkHolderPositionsAndVisibility(broadcastButton);
     }
 
     private void checkHolderPositionsAndVisibility(ButtonHolder holder) {
         final float visibility = totalVisibilityFactor * holder.visibilityAnimator.getFloatValue();
         final float offsetY = -dp(54) * (1f - visibility);
-        float offsetX = getMeasuredWidth() / 2f * (1f - AnimatorUtils.DECELERATE_INTERPOLATOR.getInterpolation(visibility));
-        if (holder == replyButton) {
-            offsetX *= -1;
-        }
+        final float offsetX = holder.direction == 0f ? 0f : getMeasuredWidth() / 2f * (1f - AnimatorUtils.DECELERATE_INTERPOLATOR.getInterpolation(visibility)) * holder.direction;
 
         holder.button.setTranslationX(offsetX);
         holder.button.setTranslationY(offsetY);
@@ -166,13 +217,20 @@ public class ChatActivityActionsButtonsLayout extends LinearLayout {
     private class ButtonHolder implements FactorAnimator.Target {
         public ChatActivityBlurredRoundButton button;
         public TextView textView;
+        public ImageView iconView;
+        public float direction;
 
         public BoolAnimator visibilityAnimator = new BoolAnimator(0, this, CubicBezierInterpolator.EASE_OUT_QUINT, 320, true);
         public BoolAnimator enabledAnimator = new BoolAnimator(1, this, CubicBezierInterpolator.EASE_OUT_QUINT, 320, true);
 
         @Override
         public void onFactorChanged(int id, float factor, float fraction, FactorAnimator callee) {
-            textView.setAlpha(lerp(0.5f, 1, enabledAnimator.getFloatValue()));
+            if (textView != null) {
+                textView.setAlpha(lerp(0.5f, 1, enabledAnimator.getFloatValue()));
+            }
+            if (iconView != null) {
+                iconView.setAlpha(lerp(0.5f, 1, enabledAnimator.getFloatValue()));
+            }
             checkHolderPositionsAndVisibility(this);
         }
     }

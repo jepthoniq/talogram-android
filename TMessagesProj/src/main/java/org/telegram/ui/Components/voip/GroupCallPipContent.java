@@ -614,7 +614,10 @@ public class GroupCallPipContent implements PipContent {
             } else if (lastSpeakerId != 0 && call.participants.get(lastSpeakerId) != null) {
                 avatarPeerId = lastSpeakerId;
             } else {
-                avatarPeerId = -service.getChat().id;
+                // Joker Mod: the VoIP service may be running without a chat object
+                // (e.g. the chat was never loaded into the database when the PiP opened).
+                final TLRPC.Chat chat = service.getChat();
+                avatarPeerId = chat != null ? -chat.id : 0;
             }
             for (Tile tile : tiles) {
                 tile.updateState(service, call, now, avatarPeerId);

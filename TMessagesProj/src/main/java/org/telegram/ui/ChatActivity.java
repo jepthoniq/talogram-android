@@ -1694,7 +1694,6 @@ public class ChatActivity extends BaseFragment implements
     private final static int change_colors = 27;
     private final static int tag_message = 28;
     private final static int boost_group = 29;
-    private final static int broadcast_to_voice_chat = 60;
 
     private final static int bot_help = 30;
     private final static int bot_settings = 31;
@@ -3744,30 +3743,6 @@ public class ChatActivity extends BaseFragment implements
                         getMessagesController().getTopicsController().toggleViewForumAsMessages(-dialog_id, false);
                         TopicsFragment.prepareToSwitchAnimation(ChatActivity.this);
                     }
-                } else if (id == broadcast_to_voice_chat) {
-                    // Joker Mod: broadcast the single selected message into the voice chat.
-                    MessageObject messageObject = null;
-                    for (int a = 1; a >= 0; a--) {
-                        for (int b = 0; b < selectedMessagesIds[a].size(); b++) {
-                            messageObject = selectedMessagesIds[a].valueAt(b);
-                        }
-                    }
-                    if (messageObject == null || !canBroadcastToVoiceChat(messageObject)) {
-                        return;
-                    }
-                    final MessageObject selectedObject = messageObject;
-                    clearSelectionMode();
-                    TalogramCallBroadcast.getInstance().toggle(getParentActivity(), currentAccount, selectedObject, () -> {
-                        if (currentChat != null && getParentActivity() instanceof LaunchActivity && getParentActivity() != null) {
-                            try {
-                                boolean createGroupCall = getGroupCall() == null;
-                                // checkJoiner=false: join (or create) the voice chat directly.
-                                VoIPHelper.startCall(currentChat, null, null, createGroupCall, false, getParentActivity(), ChatActivity.this, getAccountInstance());
-                            } catch (Throwable e) {
-                                FileLog.e(e);
-                            }
-                        }
-                    });
                 } else if (id == copy) {
                     SpannableStringBuilder str = new SpannableStringBuilder();
                     long previousUid = 0;
@@ -8183,6 +8158,8 @@ public class ChatActivity extends BaseFragment implements
             updateVisibleRows();
             updateSelectedMessageReactions();
         });
+        // Joker Mod: broadcast the single selected voice/video/music message into the voice chat.
+        actionsButtonsLayout.setBroadcastButtonOnClickListener(v -> broadcastSelectedMessage());
         bottomViewsVisibilityController.setViewVisible(MESSAGE_ACTION_CONTAINER, false, false);
         actionsButtonsLayout.setPadding(0, dp(56), 0, 0);
         actionsButtonsLayout.setClipToPadding(false);
@@ -10853,9 +10830,6 @@ public class ChatActivity extends BaseFragment implements
             }
             actionModeViews.add(actionMode.addItemWithWidth(share, R.drawable.msg_shareout, dp(48), LocaleController.getString(R.string.ShareFile)));
             actionModeViews.add(actionMode.addItemWithWidth(delete, R.drawable.msg_delete, dp(48), LocaleController.getString(R.string.Delete)));
-            // Joker Mod: broadcast the selected message into the voice chat.
-            // Only shown when exactly one eligible (downloaded, voice/video/music) message is selected.
-            actionModeViews.add(actionMode.addItemWithWidth(broadcast_to_voice_chat, R.drawable.ic_joker_record_dot, dp(48), LocaleController.getString(R.string.JokerCallBroadcastPlay)));
         } else {
             actionModeViews.add(actionMode.addItemWithWidth(edit, R.drawable.msg_edit, dp(48), LocaleController.getString(R.string.Edit)));
             actionModeViews.add(actionMode.addItemWithWidth(star, R.drawable.msg_fave, dp(48), LocaleController.getString(R.string.AddToFavorites)));
@@ -20179,18 +20153,6 @@ public class ChatActivity extends BaseFragment implements
                 ActionBarMenuItem deleteItem = actionBar.createActionMode().getItem(delete);
                 ActionBarMenuItem tagItem = actionBar.createActionMode().getItem(tag_message);
                 ActionBarMenuItem shareItem = actionBar.createActionMode().getItem(share);
-                ActionBarMenuItem broadcastItem = actionBar.createActionMode().getItem(broadcast_to_voice_chat);
-                if (broadcastItem != null) {
-                    MessageObject broadcastMessage = getBroadcastSelectedMessage();
-                    if (broadcastMessage == null) {
-                        broadcastItem.setVisibility(View.GONE);
-                    } else {
-                        boolean active = TalogramCallBroadcast.getInstance().isBusy() && TalogramCallBroadcast.getPlayingMessageId() == broadcastMessage.getId();
-                        broadcastItem.setIcon(active ? R.drawable.ic_joker_record_stop : R.drawable.ic_joker_record_dot);
-                        broadcastItem.setContentDescription(LocaleController.getString(active ? R.string.JokerCallBroadcastStop : R.string.JokerCallBroadcastPlay));
-                        broadcastItem.setVisibility(View.VISIBLE);
-                    }
-                }
 
                 boolean noforwards = isPeerNoForwards() || hasSelectedNoforwardsMessage();
                 if (prevCantForwardCount == 0 && cantForwardMessagesCount != 0 || prevCantForwardCount != 0 && cantForwardMessagesCount == 0) {
@@ -20315,6 +20277,12 @@ public class ChatActivity extends BaseFragment implements
                         }
                     }
                     actionsButtonsLayout.showReplyButton(newVisibility == View.VISIBLE, true);
+                    MessageObject broadcastMessage = getBroadcastSelectedMessage();
+                    actionsButtonsLayout.showBroadcastButton(broadcastMessage != null, true);
+                    if (broadcastMessage != null) {
+                        boolean active = TalogramCallBroadcast.getInstance().isBusy() && TalogramCallBroadcast.getPlayingMessageId() == broadcastMessage.getId();
+                        actionsButtonsLayout.setBroadcastButtonActive(active);
+                    }
                 }
 
                 if (editItem != null) {
@@ -34622,10 +34590,33 @@ public class ChatActivity extends BaseFragment implements
     }
 
     // Joker Mod: in multi-select mode the long-press popup is only shown for
+    // text/photo messages, so voice/video/music messages never reach the context
+    // menu. This starts the broadcast for the single eligible selected message
+    // (used by the bubble button at the bottom of the screen).
+    private void broadcastSelectedMessage() {
+        MessageObject messageObject = getBroadcastSelectedMessage();
+        if (messageObject == null) {
+            return;
+        }
+        clearSelectionMode();
+        TalogramCallBroadcast.getInstance().toggle(getParentActivity(), currentAccount, messageObject, () -> {
+            if (currentChat != null && getParentActivity() instanceof LaunchActivity && getParentActivity() != null) {
+                try {
+                    boolean createGroupCall = getGroupCall() == null;
+                    // checkJoiner=false: join (or create) the voice chat directly.
+                    VoIPHelper.startCall(currentChat, null, null, createGroupCall, false, getParentActivity(), ChatActivity.this, getAccountInstance());
+                } catch (Throwable e) {
+                    FileLog.e(e);
+                }
+            }
+        });
+    }
+
+    // Joker Mod: in multi-select mode the long-press popup is only shown for
     // text/photo (type < 2) messages, so voice/video/music messages never reach
-    // the context menu. The action-mode toolbar is where the broadcast button
-    // lives instead; it lights up only when exactly one eligible message is
-    // selected.
+    // the context menu. The bubble button at the bottom of the screen
+    // (between Forward and Reply) is where the broadcast button lives; it
+    // shows up only when exactly one eligible message is selected.
     private MessageObject getBroadcastSelectedMessage() {
         if (selectedMessagesIds[0].size() + selectedMessagesIds[1].size() != 1) {
             return null;
