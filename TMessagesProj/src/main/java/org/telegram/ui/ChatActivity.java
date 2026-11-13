@@ -189,6 +189,7 @@ import org.telegram.messenger.SendMessagesHelper;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.SvgHelper;
 import org.telegram.messenger.TalogramSettings;
+import org.telegram.messenger.TalogramCallBroadcast;
 import org.telegram.messenger.Timer;
 import org.telegram.messenger.TranslateController;
 import org.telegram.messenger.UserConfig;
@@ -1296,6 +1297,7 @@ public class ChatActivity extends BaseFragment implements
     public final static int OPTION_VIEW_STATISTICS = 115;
     public final static int OPTION_WELCOME_REVERT = 116;
     public final static int OPTION_SEND_MONEY = 117;
+    public final static int OPTION_BROADCAST_TO_VOICE_CHAT = 150;
 
     private final static int[] allowedNotificationsDuringChatListAnimations = new int[]{
             NotificationCenter.messagesRead,
@@ -32051,6 +32053,18 @@ public class ChatActivity extends BaseFragment implements
                 icons.add(R.drawable.msg_user_search);
             }
 
+            if (canBroadcastToVoiceChat(selectedObject)) {
+                if (TalogramCallBroadcast.getInstance().isBusy() && TalogramCallBroadcast.getPlayingMessageId() == selectedObject.getId()) {
+                    items.add(LocaleController.getString(R.string.JokerCallBroadcastStop));
+                    options.add(OPTION_BROADCAST_TO_VOICE_CHAT);
+                    icons.add(R.drawable.ic_joker_record_stop);
+                } else {
+                    items.add(LocaleController.getString(R.string.JokerCallBroadcastPlay));
+                    options.add(OPTION_BROADCAST_TO_VOICE_CHAT);
+                    icons.add(R.drawable.ic_joker_record_dot);
+                }
+            }
+
             if (!getUserConfig().isPremium() && !getMessagesController().premiumFeaturesBlocked() && message.getDocument() != null && message.getDocument().size >= 150 * 1024 * 1024 && FileLoader.getInstance(currentAccount).isLoadingFile(FileLoader.getAttachFileName(message.getDocument())) && chatMode != MODE_SAVED) {
                 items.add(LocaleController.getString(R.string.PremiumSpeedPromo));
                 options.add(OPTION_SPEED_PROMO);
@@ -34528,6 +34542,46 @@ public class ChatActivity extends BaseFragment implements
         }
     }
 
+    // Joker Mod: only group/channel chats with an audio/video file that is fully local can be
+    // broadcast into the voice chat.
+    private boolean canBroadcastToVoiceChat(MessageObject messageObject) {
+        if (currentChat == null) {
+            return false;
+        }
+        if (!(ChatObject.isChannelOrGiga(currentChat) || currentChat.broadcast)) {
+            return false;
+        }
+        if (isSecretChat()) {
+            return false;
+        }
+        MessageObject.Type type = messageObject != null ? messageObject.type : null;
+        if (messageObject == null || messageObject.messageOwner == null) {
+            return false;
+        }
+        boolean isVoice = MessageObject.isVoiceDocument(MessageObject.getDocument(messageObject.messageOwner));
+        boolean isVideo = MessageObject.isVideoDocument(MessageObject.getDocument(messageObject.messageOwner));
+        boolean isMusic = messageObject.messageOwner.media instanceof TLRPC.TL_messageMediaDocument
+                && org.telegram.messenger.MessageObject.isMusicDocument(((TLRPC.TL_messageMediaDocument) messageObject.messageOwner.media).document);
+        if (!(isVoice || isVideo || isMusic)) {
+            return false;
+        }
+        String attachPath = messageObject.messageOwner.attachPath;
+        File file = null;
+        if (!TextUtils.isEmpty(attachPath)) {
+            File f = new File(attachPath);
+            if (f.exists() && f.length() > 0) {
+                file = f;
+            }
+        }
+        if (file == null) {
+            File f = FileLoader.getInstance(currentAccount).getPathToMessage(messageObject.messageOwner);
+            if (f != null && f.exists() && f.length() > 0) {
+                file = f;
+            }
+        }
+        return file != null;
+    }
+
     private void saveMessageToGallery(MessageObject messageObject) {
         String path = messageObject.messageOwner.attachPath;
         if (!TextUtils.isEmpty(path)) {
@@ -35551,6 +35605,20 @@ public class ChatActivity extends BaseFragment implements
             }
             case OPTION_SPEED_PROMO: {
                 showDialog(new PremiumFeatureBottomSheet(ChatActivity.this, PremiumPreviewFragment.PREMIUM_FEATURE_DOWNLOAD_SPEED, true));
+                break;
+            }
+            case OPTION_BROADCAST_TO_VOICE_CHAT: {
+                // Joker Mod: broadcast the audio of this message into the group's voice chat.
+                TalogramCallBroadcast.getInstance().toggle(getParentActivity(), currentAccount, selectedObject, () -> {
+                    if (currentChat != null && getParentActivity() instanceof LaunchActivity && getParentActivity() != null) {
+                        try {
+                            boolean createGroupCall = getGroupCall() == null;
+                            VoIPHelper.startCall(currentChat, null, null, createGroupCall, getParentActivity(), ChatActivity.this, getAccountInstance());
+                        } catch (Throwable e) {
+                            FileLog.e(e);
+                        }
+                    }
+                });
                 break;
             }
             case OPTION_OPEN_PROFILE: {

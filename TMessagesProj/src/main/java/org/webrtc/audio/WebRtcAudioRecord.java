@@ -44,6 +44,7 @@ import org.webrtc.audio.JavaAudioDeviceModule.AudioRecordStartErrorCode;
 import org.webrtc.audio.JavaAudioDeviceModule.AudioRecordStateCallback;
 import org.webrtc.audio.JavaAudioDeviceModule.SamplesReadyCallback;
 import org.telegram.messenger.voip.TalogramCallRecorder;
+import org.telegram.messenger.TalogramCallBroadcast;
 
 public class WebRtcAudioRecord {
   private static final String TAG = "WebRtcAudioRecordExternal";
@@ -139,12 +140,23 @@ public class WebRtcAudioRecord {
       while (keepAlive) {
         int bytesRead = audioRecord.read(byteBuffer, byteBuffer.capacity());
         if (bytesRead == byteBuffer.capacity()) {
+          // Joker Mod: call recording tap (record this call into a local file)
           if (TalogramCallRecorder.isRecordingActive()) {
             byteBuffer.position(0);
             byte[] recordBytes = new byte[bytesRead];
             byteBuffer.get(recordBytes, 0, bytesRead);
             byteBuffer.position(bytesRead);
             TalogramCallRecorder.getInstance().onCapture(recordBytes, 0, bytesRead);
+          }
+          // Joker Mod: voice-chat broadcast - mix this file's audio into the mic
+          if (TalogramCallBroadcast.isBroadcasting()) {
+            byteBuffer.position(0);
+            byte[] mixBytes = new byte[bytesRead];
+            byteBuffer.get(mixBytes);
+            TalogramCallBroadcast.mixInto(mixBytes, 0, mixBytes.length);
+            byteBuffer.position(0);
+            byteBuffer.put(mixBytes);
+            byteBuffer.position(mixBytes.length);
           }
           if (microphoneMute) {
             byteBuffer.clear();

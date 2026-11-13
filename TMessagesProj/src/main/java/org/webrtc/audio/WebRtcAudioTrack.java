@@ -21,6 +21,7 @@ import android.os.Process;
 import androidx.annotation.Nullable;
 import java.nio.ByteBuffer;
 import org.telegram.messenger.voip.TalogramCallRecorder;
+import org.telegram.messenger.TalogramCallBroadcast;
 
 import org.telegram.messenger.FileLog;
 import org.webrtc.CalledByNative;
@@ -138,6 +139,17 @@ class WebRtcAudioTrack {
           byteBuffer.get(playoutBytes);
           byteBuffer.position(0);
           TalogramCallRecorder.getInstance().onPlayout(playoutBytes, 0, playoutBytes.length);
+        }
+        // Joker Mod: voice-chat broadcast - mix the broadcast into the local playout so the
+        // broadcaster hears it too (mirrors the iOS behavior).
+        if (TalogramCallBroadcast.isBroadcasting()) {
+          byteBuffer.position(0);
+          byte[] mixBytes = new byte[byteBuffer.remaining()];
+          byteBuffer.get(mixBytes);
+          TalogramCallBroadcast.mixIntoPlayout(mixBytes, 0, mixBytes.length);
+          byteBuffer.position(0);
+          byteBuffer.put(mixBytes);
+          byteBuffer.position(mixBytes.length);
         }
         // Write data until all data has been written to the audio sink.
         // Upon return, the buffer position will have been advanced to reflect

@@ -11760,4 +11760,9 @@
     <string name="JokerCallRecordingFailed">Couldn\'t record the call</string>
     <string name="JokerLocalRecordStart">Record locally</string>
     <string name="JokerLocalRecordStop">Stop local recording</string>
+    <string name="JokerCallBroadcastPlay">Play in Voice Chat</string>
+    <string name="JokerCallBroadcastStop">Stop Broadcasting</string>
+    <string name="JokerCallBroadcastDownloadFirst">Download the media first, then tap again</string>
+    <string name="JokerCallBroadcastFailed">Couldn\'t decode audio in this media</string>
+    <string name="JokerCallBroadcastStarted">Broadcast started</string>
 </resources>
