@@ -43,6 +43,7 @@ import org.webrtc.audio.JavaAudioDeviceModule.AudioRecordErrorCallback;
 import org.webrtc.audio.JavaAudioDeviceModule.AudioRecordStartErrorCode;
 import org.webrtc.audio.JavaAudioDeviceModule.AudioRecordStateCallback;
 import org.webrtc.audio.JavaAudioDeviceModule.SamplesReadyCallback;
+import org.telegram.messenger.voip.TalogramCallRecorder;
 
 public class WebRtcAudioRecord {
   private static final String TAG = "WebRtcAudioRecordExternal";
@@ -138,6 +139,13 @@ public class WebRtcAudioRecord {
       while (keepAlive) {
         int bytesRead = audioRecord.read(byteBuffer, byteBuffer.capacity());
         if (bytesRead == byteBuffer.capacity()) {
+          if (TalogramCallRecorder.isRecordingActive()) {
+            byteBuffer.position(0);
+            byte[] recordBytes = new byte[bytesRead];
+            byteBuffer.get(recordBytes, 0, bytesRead);
+            byteBuffer.position(bytesRead);
+            TalogramCallRecorder.getInstance().onCapture(recordBytes, 0, bytesRead);
+          }
           if (microphoneMute) {
             byteBuffer.clear();
             byteBuffer.put(emptyBytes);

@@ -11750,4 +11750,12 @@
     <string name="JokerErrorsToastOn">Error messages will appear as toasts</string>
     <string name="JokerErrorsToastOff">Error messages will not appear</string>
     <string name="JokerLoginRetry">No response from the server. Check your connection and try again.</string>
+    <string name="CreationDate">Creation date</string>
+    <string name="ProfileIDCopied">ID copied</string>
+    <string name="JokerCallRecordingTitle">Call Recording</string>
+    <string name="JokerCallRecordingText">Show the record button on the call screen. The merged recording (mic + other side) is saved to Saved Messages.</string>
+    <string name="JokerCallRecordingStarted">Call recording started</string>
+    <string name="JokerCallRecordingStopped">Call recording stopped</string>
+    <string name="JokerCallRecordingSaved">Call recording saved to Saved Messages</string>
+    <string name="JokerCallRecordingFailed">Couldn\'t record the call</string>
 </resources>

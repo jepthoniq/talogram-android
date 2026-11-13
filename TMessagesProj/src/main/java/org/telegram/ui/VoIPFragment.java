@@ -85,10 +85,13 @@ import org.telegram.messenger.UserObject;
 import org.telegram.messenger.Utilities;
 import org.telegram.utils.pip.PipEnvironment;
 import org.telegram.ui.Components.voip.VoIPPipContent;
+import org.telegram.ui.Components.voip.JokerRecordPillView;
 import org.telegram.messenger.voip.EncryptionKeyEmojifier;
 import org.telegram.messenger.voip.Instance;
 import org.telegram.messenger.voip.VideoCapturerDevice;
 import org.telegram.messenger.voip.VoIPService;
+import org.telegram.messenger.voip.TalogramCallRecorder;
+import org.telegram.messenger.TalogramSettings;
 import org.telegram.messenger.voip.VoIPServiceState;
 import org.telegram.messenger.voip.VoipAudioManager;
 import org.telegram.tgnet.ConnectionsManager;
@@ -165,6 +168,7 @@ public class VoIPFragment implements
     private VoIpSwitchLayout bottomVideoBtn;
     private VoIpSwitchLayout bottomMuteBtn;
     private VoIPToggleButton bottomEndCallBtn;
+    private JokerRecordPillView recordPillView;
     private final VoIPBackgroundProvider backgroundProvider = new VoIPBackgroundProvider();
 
     private ViewGroup fragmentView;
@@ -476,6 +480,10 @@ public class VoIPFragment implements
     }
 
     public void finish() {
+        TalogramCallRecorder.getInstance().setListener(null);
+        if (recordPillView != null) {
+            recordPillView = null;
+        }
         windowView.finish();
     }
 
@@ -1155,6 +1163,28 @@ public class VoIPFragment implements
         addIcon.setPadding(dp(16), dp(16), dp(16), dp(16));
         frameLayout.addView(addIcon, LayoutHelper.createFrame(56, 56, Gravity.TOP | Gravity.RIGHT));
         ScaleStateListAnimator.apply(addIcon);
+
+        recordPillView = new JokerRecordPillView(context, new JokerRecordPillView.OnToggleRecordingListener() {
+            @Override
+            public void onToggle() {
+                toggleCallRecording();
+            }
+        });
+        recordPillView.setVisibility(View.GONE);
+        frameLayout.addView(recordPillView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP | Gravity.RIGHT, 0, 8, 62, 0));
+        TalogramCallRecorder.getInstance().setListener(new TalogramCallRecorder.Listener() {
+            @Override
+            public void onRecordingStateChanged(boolean recording) {
+                if (recordPillView != null) {
+                    recordPillView.setRecording(recording);
+                    recordPillView.setTimerText(TalogramCallRecorder.getInstance().getDurationSeconds());
+                }
+            }
+
+            @Override
+            public void onRecordingStarted(String peerName) {
+            }
+        });
 
         backIcon = new ImageView(context);
         backIcon.setBackground(Theme.createSelectorDrawable(ColorUtils.setAlphaComponent(Color.WHITE, (int) (255 * 0.3f))));
@@ -2572,10 +2602,49 @@ public class VoIPFragment implements
         acceptDeclineView.setTag(show ? 1 : null);
     }
 
+    private void toggleCallRecording() {
+        VoIPService service = VoIPService.getSharedInstance();
+        if (service == null) {
+            return;
+        }
+        if (TalogramCallRecorder.getInstance().isRecordingActive()) {
+            TalogramCallRecorder.getInstance().stopAndSend(windowView != null ? windowView.getContext() : null);
+            return;
+        }
+        if (!TalogramSettings.isCallRecording()) {
+            return;
+        }
+        String peerName = null;
+        if (callingUser != null) {
+            String name = callingUser.first_name;
+            if (name == null) {
+                name = "";
+            }
+            if (callingUser.last_name != null) {
+                name = name.length() == 0 ? callingUser.last_name : name + " " + callingUser.last_name;
+            }
+            name = name.trim();
+            if (!name.isEmpty()) {
+                peerName = name;
+            }
+        }
+        TalogramCallRecorder.getInstance().start(currentAccount, peerName);
+        if (windowView != null) {
+            android.widget.Toast.makeText(windowView.getContext(), LocaleController.getString(R.string.JokerCallRecordingStarted), android.widget.Toast.LENGTH_SHORT).show();
+        }
+    }
+
     private void updateButtons(boolean animated) {
         VoIPService service = VoIPService.getSharedInstance();
         if (service == null) {
             return;
+        }
+        if (recordPillView != null) {
+            boolean showRecord = TalogramSettings.isCallRecording()
+                    && currentState != VoIPService.STATE_ENDED
+                    && currentState != VoIPService.STATE_WAITING_INCOMING
+                    && currentState != VoIPService.STATE_BUSY;
+            recordPillView.setVisibility(showRecord ? View.VISIBLE : View.GONE);
         }
         if (animated) {
             TransitionSet transitionSet = new TransitionSet();

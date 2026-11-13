@@ -1310,4 +1310,12 @@
     <string name="JokerErrorsToastOn">ستظهر رسائل الأخطاء كإشعارات داخل التطبيق</string>
     <string name="JokerErrorsToastOff">لن تظهر رسائل الأخطاء</string>
     <string name="JokerLoginRetry">لم يصل رد من الخادم. تحقق من الاتصال وحاول مرة أخرى.</string>
+    <string name="CreationDate">تاريخ الإنشاء</string>
+    <string name="ProfileIDCopied">تم نسخ المعرف</string>
+    <string name="JokerCallRecordingTitle">تسجيل المكالمات</string>
+    <string name="JokerCallRecordingText">إظهار زر التسجيل في شاشة المكالمة. يتم حفظ التسجيل المدمَج (ميكروفون + الطرف الآخر) في الرسائل المحفوظة.</string>
+    <string name="JokerCallRecordingStarted">بدأ تسجيل المكالمة</string>
+    <string name="JokerCallRecordingStopped">توقف تسجيل المكالمة</string>
+    <string name="JokerCallRecordingSaved">تم حفظ التسجيل في الرسائل المحفوظة</string>
+    <string name="JokerCallRecordingFailed">تعذر تسجيل المكالمة</string>
 </resources>

@@ -51,14 +51,15 @@ public class TalogramSettingsActivity extends BaseFragment {
     private static final int ROW_BYPASS_COPY = 6;
     private static final int ROW_KEEP_DELETED = 7;
     private static final int ROW_STORY_FREEZE = 8;
-    private static final int ROW_VOICE_TO_TEXT = 9;
-    private static final int ROW_SECRET_CHAT_TOOLS = 10;
-    private static final int ROW_LOCAL_HEADER = 11;
-    private static final int ROW_QUICK_REPLIES = 12;
-    private static final int ROW_DEBUG_LOG = 13;
-    private static final int ROW_CREDITS_HEADER = 14;
-    private static final int ROW_CREDITS = 15;
-    private static final int ROW_COUNT = 16;
+    private static final int ROW_CALL_RECORDING = 9;
+    private static final int ROW_VOICE_TO_TEXT = 10;
+    private static final int ROW_SECRET_CHAT_TOOLS = 11;
+    private static final int ROW_LOCAL_HEADER = 12;
+    private static final int ROW_QUICK_REPLIES = 13;
+    private static final int ROW_DEBUG_LOG = 14;
+    private static final int ROW_CREDITS_HEADER = 15;
+    private static final int ROW_CREDITS = 16;
+    private static final int ROW_COUNT = 17;
 
     private RecyclerListView listView;
     private ListAdapter adapter;
@@ -233,6 +234,9 @@ public class TalogramSettingsActivity extends BaseFragment {
             case ROW_STORY_FREEZE:
                 key = TalogramSettings.KEY_STORY_FREEZE;
                 break;
+            case ROW_CALL_RECORDING:
+                key = TalogramSettings.KEY_CALL_RECORDING;
+                break;
             case ROW_VOICE_TO_TEXT:
                 key = TalogramSettings.KEY_VOICE_TO_TEXT;
                 break;
@@ -243,7 +247,7 @@ public class TalogramSettingsActivity extends BaseFragment {
                 break;
         }
         if (key != null) {
-            boolean defaultValue = key != null && (key.equals(TalogramSettings.KEY_VOICE_TO_TEXT) || key.equals(TalogramSettings.KEY_SECRET_CHAT_TOOLS));
+            boolean defaultValue = key != null && (key.equals(TalogramSettings.KEY_VOICE_TO_TEXT) || key.equals(TalogramSettings.KEY_SECRET_CHAT_TOOLS) || key.equals(TalogramSettings.KEY_CALL_RECORDING));
             TalogramSettings.setBoolean(key, !TalogramSettings.getBoolean(key, defaultValue));
             adapter.notifyItemChanged(position);
             return;
@@ -340,6 +344,9 @@ public class TalogramSettingsActivity extends BaseFragment {
                         break;
                     case ROW_KEEP_DELETED:
                         cell.setTextAndValueAndCheck(LocaleController.getString(R.string.JokerKeepDeletedMessagesTitle), LocaleController.getString(R.string.JokerKeepDeletedMessagesText), TalogramSettings.getBoolean(TalogramSettings.KEY_KEEP_DELETED), true, true);
+                        break;
+                    case ROW_CALL_RECORDING:
+                        cell.setTextAndValueAndCheck(LocaleController.getString(R.string.JokerCallRecordingTitle), LocaleController.getString(R.string.JokerCallRecordingText), TalogramSettings.getBoolean(TalogramSettings.KEY_CALL_RECORDING, true), true, true);
                         break;
                     case ROW_STORY_FREEZE:
                         cell.setTextAndValueAndCheck(LocaleController.getString(R.string.JokerFreezeStoryViewsTitle), LocaleController.getString(R.string.JokerFreezeStoryViewsText), TalogramSettings.getBoolean(TalogramSettings.KEY_STORY_FREEZE), true, true);

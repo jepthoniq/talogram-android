@@ -671,6 +671,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private int userInfoRow;
     private int channelInfoRow;
     private int usernameRow;
+    private int creationRow;
+    private int idRow;
     private int notificationsDividerRow;
     private int notificationsRow;
     private int bizHoursRow;
@@ -4456,6 +4458,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 openAddMember();
             } else if (position == usernameRow) {
                 processOnClickOrPress(position, view, x, y);
+            } else if (position == idRow) {
+                copyProfileId();
             } else if (position == linkedCommunityRow) {
                 if (currentChat != null) {
                     showDialog(new CommunitySheet(this, currentChat.linked_community_id));
@@ -7428,6 +7432,32 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             }
         });
         presentFragment(fragment);
+    }
+
+    private String getProfileIdText() {
+        if (userId != 0) {
+            return String.valueOf(userId);
+        }
+        if (chatId != 0) {
+            // Joker Mod: plain groups and channels keep the -100 prefix used by t.me links.
+            return "-100" + chatId;
+        }
+        return "";
+    }
+
+    private void copyProfileId() {
+        final String text = getProfileIdText();
+        if (TextUtils.isEmpty(text)) {
+            return;
+        }
+        try {
+            android.content.ClipboardManager clipboard = (android.content.ClipboardManager) ApplicationLoader.applicationContext.getSystemService(Context.CLIPBOARD_SERVICE);
+            android.content.ClipData clip = android.content.ClipData.newPlainText("label", text);
+            clipboard.setPrimaryClip(clip);
+            BulletinFactory.of(this).createCopyBulletin(LocaleController.getString(R.string.ProfileIDCopied), resourcesProvider).show();
+        } catch (Exception e) {
+            FileLog.e(e);
+        }
     }
 
     private boolean processOnClickOrPress(final int position, final View view, final float x, final float y) {
@@ -10772,6 +10802,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         infoEndRowEmpty = -1;
         phoneRow = -1;
         noteRow = -1;
+        creationRow = -1;
+        idRow = -1;
         userInfoRow = -1;
         locationRow = -1;
         channelInfoRow = -1;
@@ -10990,6 +11022,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (isBot && user != null && user.bot_has_main_app) {
                     botAppRow = rowCount++;
                 }
+                idRow = rowCount++;
                 infoEndRow = rowCount - 1;
                 infoSectionRow = rowCount++;
 
@@ -11142,6 +11175,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 }
                 notificationsRow = rowCount++;
             }
+            if (currentChat != null && currentChat.date != 0) {
+                creationRow = rowCount++;
+            }
+            idRow = rowCount++;
             if (rowCount > 0) {
                 infoSectionRow = rowCount++;
             }
@@ -13558,6 +13595,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         }
                         isFragmentPhoneNumber = phoneNumber != null && phoneNumber.matches("888\\d{8}");
                         detailCell.setTextAndValue(text, LocaleController.getString(isFragmentPhoneNumber ? R.string.AnonymousNumber : R.string.PhoneMobile), false);
+                    } else if (position == creationRow) {
+                        TLRPC.Chat chat = chatId != 0 ? getMessagesController().getChat(chatId) : null;
+                        String text = chat != null ? LocaleController.formatDateTime((long) chat.date, false) : "";
+                        detailCell.setTextAndValue(text, LocaleController.getString(R.string.CreationDate), false);
+                    } else if (position == idRow) {
+                        detailCell.setTextAndValue(getProfileIdText(), "ID", false);
                     } else if (position == noteRow) {
                         final TLRPC.UserFull userInfo = getMessagesController().getUserFull(userId);
                         if (userInfo == null) return;
@@ -14376,7 +14419,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (position == infoHeaderRow || position == membersHeaderRow || position == settingsSectionRow2 ||
                     position == numberSectionRow || position == helpHeaderRow || position == debugHeaderRow || position == botPermissionsHeader) {
                 return VIEW_TYPE_HEADER;
-            } else if (position == phoneRow || position == locationRow || position == numberRow || position == birthdayRow) {
+            } else if (position == phoneRow || position == locationRow || position == numberRow || position == birthdayRow || position == creationRow || position == idRow) {
                 return VIEW_TYPE_TEXT_DETAIL;
             } else if (position == usernameRow || position == setUsernameRow) {
                 return VIEW_TYPE_TEXT_DETAIL_MULTILINE;

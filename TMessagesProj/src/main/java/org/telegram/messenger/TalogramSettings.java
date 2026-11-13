@@ -39,6 +39,7 @@ public final class TalogramSettings {
     public static final String KEY_STORY_FREEZE = "story_freeze";
     public static final String KEY_VOICE_TO_TEXT = "joker_voice_to_text";
     public static final String KEY_SECRET_CHAT_TOOLS = "joker_secret_chat_tools";
+    public static final String KEY_CALL_RECORDING = "joker_call_recording";
     public static final String KEY_QUICK_REPLIES = "quick_replies_json";
 
     // Every Joker feature toggle. Used by the subscription gate: when the
@@ -54,7 +55,8 @@ public final class TalogramSettings {
             KEY_AUTO_SAVE_MEDIA,
             KEY_STORY_FREEZE,
             KEY_VOICE_TO_TEXT,
-            KEY_SECRET_CHAT_TOOLS
+            KEY_SECRET_CHAT_TOOLS,
+            KEY_CALL_RECORDING
     };
 
     public static final class QuickReply {
@@ -147,6 +149,12 @@ public final class TalogramSettings {
     // screenshot notification suppression). Defaults to on.
     public static boolean isSecretChatTools() {
         return granted() && getBoolean(KEY_SECRET_CHAT_TOOLS, true);
+    }
+
+    // Joker Mod: private call recording (mic + remote) merged and sent to Saved Messages on stop.
+    // Defaults to on.
+    public static boolean isCallRecording() {
+        return granted() && getBoolean(KEY_CALL_RECORDING, true);
     }
 
     // Called when the subscription is lost: switch every Joker feature off.

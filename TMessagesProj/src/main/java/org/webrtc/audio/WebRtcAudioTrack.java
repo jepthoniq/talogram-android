@@ -20,6 +20,7 @@ import android.os.Build;
 import android.os.Process;
 import androidx.annotation.Nullable;
 import java.nio.ByteBuffer;
+import org.telegram.messenger.voip.TalogramCallRecorder;
 
 import org.telegram.messenger.FileLog;
 import org.webrtc.CalledByNative;
@@ -130,6 +131,14 @@ class WebRtcAudioTrack {
         // written into the common ByteBuffer using the address that was
         // cached at construction.
         nativeGetPlayoutData(nativeAudioTrack, sizeInBytes);
+        // Joker Mod: tap the playout bytes for call recording (peer audio).
+        if (TalogramCallRecorder.isRecordingActive()) {
+          byteBuffer.position(0);
+          byte[] playoutBytes = new byte[byteBuffer.remaining()];
+          byteBuffer.get(playoutBytes);
+          byteBuffer.position(0);
+          TalogramCallRecorder.getInstance().onPlayout(playoutBytes, 0, playoutBytes.length);
+        }
         // Write data until all data has been written to the audio sink.
         // Upon return, the buffer position will have been advanced to reflect
         // the amount of data that was successfully written to the AudioTrack.
