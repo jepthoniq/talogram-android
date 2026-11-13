@@ -113,6 +113,7 @@ import org.telegram.messenger.NotificationsController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.StatsController;
+import org.telegram.messenger.TalogramCallBroadcast;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
 import org.telegram.messenger.Utilities;
@@ -5636,6 +5637,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 			FileLog.d("Call " + getCallID() + " ended");
 		}
 		TalogramCallRecorder.getInstance().stopIfRecording();
+		TalogramCallBroadcast.getInstance().stop();
 		isCallEnded = true;
 		if (groupCall != null && (!playedConnectedSound || onDestroyRunnable != null)) {
 			needPlayEndSound = false;

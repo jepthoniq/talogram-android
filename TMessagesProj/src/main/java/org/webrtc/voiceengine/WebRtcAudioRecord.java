@@ -26,6 +26,8 @@ import java.nio.ByteOrder;
 import java.util.Arrays;
 
 import org.telegram.messenger.FileLog;
+import org.telegram.messenger.TalogramCallBroadcast;
+import org.telegram.messenger.voip.TalogramCallRecorder;
 import org.telegram.messenger.voip.VideoCapturerDevice;
 import org.webrtc.Logging;
 import org.webrtc.ThreadUtils;
@@ -193,6 +195,27 @@ public class WebRtcAudioRecord {
               byteBuffer.putShort(a * 2, (short) mixed);
             }
           }
+          // Joker Mod: mix the voice-chat broadcast file into the outgoing microphone
+          // stream, after the mute/silence logic, so the broadcast is heard even when
+          // the microphone itself is muted.
+          if (TalogramCallBroadcast.isBroadcasting()) {
+            byteBuffer.position(0);
+            byte[] mixBytes = new byte[bytesRead];
+            byteBuffer.get(mixBytes, 0, bytesRead);
+            TalogramCallBroadcast.mixInto(mixBytes, 0, bytesRead);
+            byteBuffer.position(0);
+            byteBuffer.put(mixBytes, 0, bytesRead);
+            byteBuffer.position(bytesRead);
+          }
+          // Joker Mod: capture exactly what we are about to send (mic + broadcast)
+          // for the local call recording.
+          if (TalogramCallRecorder.isRecordingActive()) {
+            byteBuffer.position(0);
+            byte[] recordBytes = new byte[bytesRead];
+            byteBuffer.get(recordBytes, 0, bytesRead);
+            byteBuffer.position(bytesRead);
+            TalogramCallRecorder.getInstance().onCapture(recordBytes, 0, bytesRead);
+          }
           // It's possible we've been shut down during the read, and stopRecording() tried and
           // failed to join this thread. To be a bit safer, try to avoid calling any native methods
           // in case they've been unregistered after stopRecording() returned.
@@ -274,6 +297,8 @@ public class WebRtcAudioRecord {
   }
 
   private int initRecording(int sampleRate, int channels) {
+    TalogramCallRecorder.getInstance().setCaptureFormat(sampleRate, channels);
+    TalogramCallBroadcast.setOutputFormat(sampleRate, channels);
     if (captureType == 1 && Build.VERSION.SDK_INT < 29) {
       return -1;
     }

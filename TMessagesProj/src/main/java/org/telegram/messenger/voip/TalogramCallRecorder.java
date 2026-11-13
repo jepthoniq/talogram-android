@@ -48,6 +48,10 @@ public final class TalogramCallRecorder {
     private volatile boolean recording;
     private volatile long recordingStartedAt;
     private volatile int durationSeconds;
+    private volatile int captureSampleRate = 48000;
+    private volatile int captureChannels = 1;
+    private volatile int playoutSampleRate = 48000;
+    private volatile int playoutChannels = 1;
     private final ByteArrayOutputStream micStream = new ByteArrayOutputStream();
     private final ByteArrayOutputStream playoutStream = new ByteArrayOutputStream();
     private final Object streamLock = new Object();
@@ -88,6 +92,25 @@ public final class TalogramCallRecorder {
         return durationSeconds;
     }
 
+    // Called by the WebRTC audio device module when a call starts.
+    public void setCaptureFormat(int sampleRate, int channels) {
+        if (sampleRate > 0) {
+            captureSampleRate = sampleRate;
+        }
+        if (channels > 0) {
+            captureChannels = channels;
+        }
+    }
+
+    public void setPlayoutFormat(int sampleRate, int channels) {
+        if (sampleRate > 0) {
+            playoutSampleRate = sampleRate;
+        }
+        if (channels > 0) {
+            playoutChannels = channels;
+        }
+    }
+
     public void start(int currentAccount, String peerName) {
         if (recording) {
             return;
@@ -112,6 +135,10 @@ public final class TalogramCallRecorder {
         recording = false;
         final byte[] mic;
         final byte[] playout;
+        final int sampleRate = captureSampleRate;
+        final int channels = captureChannels;
+        final int rawPlayoutSampleRate = playoutSampleRate;
+        final int rawPlayoutChannels = playoutChannels;
         final String name = peerName;
         synchronized (streamLock) {
             mic = micStream.toByteArray();
@@ -122,11 +149,12 @@ public final class TalogramCallRecorder {
         listenersNotifyStopped();
         Utilities.globalQueue.postRunnable(() -> {
             try {
-                final byte[] merged = mergeTracks(mic, playout);
+                final byte[] convertedPlayout = convertPcm(playout, rawPlayoutSampleRate, rawPlayoutChannels, sampleRate, channels);
+                final byte[] merged = mergeTracks(mic, convertedPlayout);
                 final String fileName = formatRecordingFileName(name);
-                File outFile = encodeToM4A(merged, fileName);
+                File outFile = encodeToM4A(merged, fileName, sampleRate, channels);
                 if (outFile == null) {
-                    outFile = encodeToWav(merged, stripExtension(fileName) + ".wav");
+                    outFile = encodeToWav(merged, stripExtension(fileName) + ".wav", sampleRate, channels);
                 }
                 if (outFile != null && outFile.exists() && outFile.length() > 0) {
                     sendRecording(currentAccount, outFile.getAbsolutePath(), outFile.getName());
@@ -251,6 +279,92 @@ public final class TalogramCallRecorder {
         return (short) ((bytes[index] & 0xff) | (bytes[index + 1] << 8));
     }
 
+    // Converts 16-bit PCM between channel counts and sample rates, so the remote
+    // playout can always be merged with the microphone track.
+    private byte[] convertPcm(byte[] data, int fromRate, int fromChannels, int toRate, int toChannels) {
+        if (data == null || data.length == 0) {
+            return new byte[0];
+        }
+        if (fromRate <= 0) {
+            fromRate = 48000;
+        }
+        if (fromChannels <= 0) {
+            fromChannels = 1;
+        }
+        if (toRate <= 0) {
+            toRate = 48000;
+        }
+        if (toChannels <= 0) {
+            toChannels = 1;
+        }
+        short[] samples = new short[data.length / 2];
+        for (int i = 0; i < samples.length; i++) {
+            samples[i] = (short) ((data[i * 2] & 0xff) | (data[i * 2 + 1] << 8));
+        }
+        if (fromChannels != toChannels) {
+            samples = convertChannels(samples, fromChannels, toChannels);
+        }
+        if (fromRate != toRate) {
+            samples = resample(samples, fromRate, toRate);
+        }
+        byte[] result = new byte[samples.length * 2];
+        for (int i = 0; i < samples.length; i++) {
+            result[i * 2] = (byte) (samples[i] & 0xff);
+            result[i * 2 + 1] = (byte) ((samples[i] >> 8) & 0xff);
+        }
+        return result;
+    }
+
+    private short[] convertChannels(short[] input, int fromChannels, int toChannels) {
+        int frames = input.length / fromChannels;
+        short[] output = new short[frames * toChannels];
+        for (int frame = 0; frame < frames; frame++) {
+            if (toChannels == 1) {
+                int sum = 0;
+                for (int c = 0; c < fromChannels; c++) {
+                    sum += input[frame * fromChannels + c];
+                }
+                output[frame] = (short) (sum / fromChannels);
+            } else if (fromChannels == 1) {
+                short value = input[frame];
+                for (int c = 0; c < toChannels; c++) {
+                    output[frame * toChannels + c] = value;
+                }
+            } else {
+                for (int c = 0; c < toChannels; c++) {
+                    output[frame * toChannels + c] = input[frame * fromChannels + Math.min(c, fromChannels - 1)];
+                }
+            }
+        }
+        return output;
+    }
+
+    private short[] resample(short[] input, int fromRate, int toRate) {
+        if (fromRate == toRate || input.length == 0) {
+            return input;
+        }
+        double ratio = (double) fromRate / (double) toRate;
+        int outputLength = (int) (input.length / ratio);
+        if (outputLength <= 0) {
+            outputLength = 1;
+        }
+        short[] output = new short[outputLength];
+        for (int i = 0; i < output.length; i++) {
+            double srcPos = i * ratio;
+            int index = (int) srcPos;
+            int next = Math.min(index + 1, input.length - 1);
+            double fraction = srcPos - index;
+            double value = input[index] + (input[next] - input[index]) * fraction;
+            if (value > Short.MAX_VALUE) {
+                value = Short.MAX_VALUE;
+            } else if (value < Short.MIN_VALUE) {
+                value = Short.MIN_VALUE;
+            }
+            output[i] = (short) value;
+        }
+        return output;
+    }
+
     private File outputDir() {
         File dir = new File(FileLoader.getDirectory(FileLoader.MEDIA_DIR_CACHE), "talogram-call-recordings");
         if (!dir.exists()) {
@@ -259,9 +373,13 @@ public final class TalogramCallRecorder {
         return dir;
     }
 
-    private File encodeToM4A(byte[] pcm, String fileName) {
-        final int SAMPLE_RATE = 48000;
-        final int CHANNELS = 1;
+    private File encodeToM4A(byte[] pcm, String fileName, int sampleRate, int channels) {
+        if (sampleRate <= 0) {
+            sampleRate = 48000;
+        }
+        if (channels <= 0) {
+            channels = 1;
+        }
         MediaCodec codec = null;
         MediaMuxer muxer = null;
         File outFile = new File(outputDir(), fileName);
@@ -269,7 +387,7 @@ public final class TalogramCallRecorder {
             if (outFile.exists()) {
                 outFile.delete();
             }
-            MediaFormat format = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, SAMPLE_RATE, CHANNELS);
+            MediaFormat format = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, sampleRate, channels);
             format.setInteger(MediaFormat.KEY_BIT_RATE, 96000);
             format.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC);
             format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 16384);
@@ -287,7 +405,7 @@ public final class TalogramCallRecorder {
             boolean outputDone = false;
             int trackIndex = -1;
             boolean muxerStarted = false;
-            int bytesPerSecond = SAMPLE_RATE * CHANNELS * 2;
+            int bytesPerSecond = sampleRate * channels * 2;
 
             while (!outputDone) {
                 if (!inputDone) {
@@ -381,14 +499,18 @@ public final class TalogramCallRecorder {
         org.telegram.messenger.FileLog.e(e);
     }
 
-    private File encodeToWav(byte[] pcm, String fileName) {
+    private File encodeToWav(byte[] pcm, String fileName, int sampleRate, int channels) {
         try {
             File outFile = new File(outputDir(), fileName);
             if (outFile.exists()) {
                 outFile.delete();
             }
-            int sampleRate = 48000;
-            int channels = 1;
+            if (sampleRate <= 0) {
+                sampleRate = 48000;
+            }
+            if (channels <= 0) {
+                channels = 1;
+            }
             int bitsPerSample = 16;
             int byteRate = sampleRate * channels * bitsPerSample / 8;
             int blockAlign = channels * bitsPerSample / 8;

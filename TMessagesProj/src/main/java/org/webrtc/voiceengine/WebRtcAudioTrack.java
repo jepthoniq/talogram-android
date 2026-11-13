@@ -23,6 +23,8 @@ import android.util.Log;
 import androidx.annotation.Nullable;
 
 import org.telegram.messenger.FileLog;
+import org.telegram.messenger.TalogramCallBroadcast;
+import org.telegram.messenger.voip.TalogramCallRecorder;
 import org.webrtc.ContextUtils;
 import org.webrtc.Logging;
 import org.webrtc.ThreadUtils;
@@ -173,9 +175,30 @@ public class WebRtcAudioTrack {
         // Upon return, the buffer position will have been advanced to reflect
         // the amount of data that was successfully written to the AudioTrack.
         assertTrue(sizeInBytes <= byteBuffer.remaining());
+        // Joker Mod: tap the remote playout for the local call recording before any
+        // local processing, so the recording keeps the real remote audio even while the
+        // speaker is muted and without duplicating the broadcasted file.
+        if (TalogramCallRecorder.isRecordingActive()) {
+          byteBuffer.position(0);
+          byte[] recordBytes = new byte[sizeInBytes];
+          byteBuffer.get(recordBytes, 0, sizeInBytes);
+          byteBuffer.position(0);
+          TalogramCallRecorder.getInstance().onPlayout(recordBytes, 0, sizeInBytes);
+        }
         if (speakerMute) {
           byteBuffer.clear();
           byteBuffer.put(emptyBytes);
+          byteBuffer.position(0);
+        }
+        // Joker Mod: mix the voice-chat broadcast into the local playout too, so the
+        // broadcaster hears the same audio the participants hear.
+        if (TalogramCallBroadcast.isBroadcasting()) {
+          byteBuffer.position(0);
+          byte[] mixBytes = new byte[sizeInBytes];
+          byteBuffer.get(mixBytes, 0, sizeInBytes);
+          TalogramCallBroadcast.mixIntoPlayout(mixBytes, 0, sizeInBytes);
+          byteBuffer.position(0);
+          byteBuffer.put(mixBytes, 0, sizeInBytes);
           byteBuffer.position(0);
         }
         int bytesWritten = writeBytes(audioTrack, byteBuffer, sizeInBytes, blocking);
@@ -259,6 +282,8 @@ public class WebRtcAudioTrack {
 
   private int initPlayout(int sampleRate, int channels, double bufferSizeFactor) {
     threadChecker.checkIsOnValidThread();
+    TalogramCallRecorder.getInstance().setPlayoutFormat(sampleRate, channels);
+    TalogramCallBroadcast.setPlayoutOutputFormat(sampleRate, channels);
     Logging.d(TAG,
         "initPlayout(sampleRate=" + sampleRate + ", channels=" + channels
             + ", bufferSizeFactor=" + bufferSizeFactor + ")");

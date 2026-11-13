@@ -43,6 +43,12 @@ public final class TalogramCallBroadcast {
     private volatile State state = State.IDLE;
     private volatile long playingMessageId = 0;
 
+    // Output format of the call audio device; the broadcast PCM is mixed into
+    // these formats (48 kHz, mono or stereo). Capture and playout can differ in
+    // theory, so they are tracked separately.
+    private static volatile int captureChannels = 1;
+    private static volatile int playoutChannels = 1;
+
     // decoded PCM of the file, 16-bit signed mono at SAMPLE_RATE
     private byte[] pcm;
     private int pcmOffset;
@@ -79,6 +85,19 @@ public final class TalogramCallBroadcast {
 
     public static String getFilePath() {
         return INSTANCE.filePath;
+    }
+
+    // Called by the WebRTC audio device module when the call audio format is known.
+    public static void setOutputFormat(int sampleRate, int channels) {
+        if (channels > 0) {
+            captureChannels = channels;
+        }
+    }
+
+    public static void setPlayoutOutputFormat(int sampleRate, int channels) {
+        if (channels > 0) {
+            playoutChannels = channels;
+        }
     }
 
     public void stop() {
@@ -150,6 +169,11 @@ public final class TalogramCallBroadcast {
         if (!isBroadcasting() || buffer == null || length <= 0) {
             return false;
         }
+        int channels = Math.max(1, captureChannels);
+        int frames = length / (BYTES_PER_SAMPLE * channels);
+        if (frames <= 0) {
+            return false;
+        }
         byte[] chunk;
         synchronized (INSTANCE) {
             byte[] data = INSTANCE.pcm;
@@ -161,7 +185,7 @@ public final class TalogramCallBroadcast {
                 INSTANCE.stop();
                 return false;
             }
-            int count = Math.min(available, length);
+            int count = Math.min(available, frames * BYTES_PER_SAMPLE);
             chunk = new byte[count];
             System.arraycopy(data, INSTANCE.pcmOffset, chunk, 0, count);
             INSTANCE.pcmOffset += count;
@@ -169,13 +193,18 @@ public final class TalogramCallBroadcast {
                 INSTANCE.playoutQueue.offer(chunk.clone());
             }
         }
-        applyChunk(buffer, offset, length, chunk);
+        applyChunk(buffer, offset, length, chunk, channels);
         return true;
     }
 
     // Drains the local-speaker queue with the same mix as the mic path.
     public static boolean mixIntoPlayout(byte[] buffer, int offset, int length) {
         if (!isBroadcasting() || buffer == null || length <= 0) {
+            return false;
+        }
+        int channels = Math.max(1, playoutChannels);
+        int frames = length / (BYTES_PER_SAMPLE * channels);
+        if (frames <= 0) {
             return false;
         }
         byte[] chunk;
@@ -185,34 +214,38 @@ public final class TalogramCallBroadcast {
         if (chunk == null) {
             return false;
         }
-        applyChunk(buffer, offset, length, chunk);
+        applyChunk(buffer, offset, length, chunk, channels);
         return true;
     }
 
-    private static void applyChunk(byte[] buffer, int offset, int length, byte[] chunk) {
-        int samples = length / BYTES_PER_SAMPLE;
-        for (int i = 0; i < samples; i++) {
-            int micLow = buffer[offset + i * 2] & 0xff;
-            int micHigh = buffer[offset + i * 2 + 1];
-            int mic = (micLow | (micHigh << 8));
-            if (mic >= 0x8000) {
-                mic -= 0x10000;
-            }
+    private static void applyChunk(byte[] buffer, int offset, int length, byte[] chunk, int channels) {
+        int frames = length / (BYTES_PER_SAMPLE * channels);
+        int broadcastSamples = chunk.length / BYTES_PER_SAMPLE;
+        for (int frame = 0; frame < frames; frame++) {
             int broadcast = 0;
-            if (i * 2 + 1 < chunk.length) {
-                broadcast = (chunk[i * 2] & 0xff) | (chunk[i * 2 + 1] << 8);
+            if (frame < broadcastSamples) {
+                broadcast = (chunk[frame * 2] & 0xff) | (chunk[frame * 2 + 1] << 8);
                 if (broadcast >= 0x8000) {
                     broadcast -= 0x10000;
                 }
             }
-            int mixed = mic + broadcast;
-            if (mixed > 32767) {
-                mixed = 32767;
-            } else if (mixed < -32768) {
-                mixed = -32768;
+            for (int c = 0; c < channels; c++) {
+                int index = offset + (frame * channels + c) * BYTES_PER_SAMPLE;
+                int micLow = buffer[index] & 0xff;
+                int micHigh = buffer[index + 1];
+                int mic = (micLow | (micHigh << 8));
+                if (mic >= 0x8000) {
+                    mic -= 0x10000;
+                }
+                int mixed = mic + broadcast;
+                if (mixed > 32767) {
+                    mixed = 32767;
+                } else if (mixed < -32768) {
+                    mixed = -32768;
+                }
+                buffer[index] = (byte) (mixed & 0xff);
+                buffer[index + 1] = (byte) ((mixed >> 8) & 0xff);
             }
-            buffer[offset + i * 2] = (byte) (mixed & 0xff);
-            buffer[offset + i * 2 + 1] = (byte) ((mixed >> 8) & 0xff);
         }
     }
 

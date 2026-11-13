@@ -35612,7 +35612,9 @@ public class ChatActivity extends BaseFragment implements
                     if (currentChat != null && getParentActivity() instanceof LaunchActivity && getParentActivity() != null) {
                         try {
                             boolean createGroupCall = getGroupCall() == null;
-                            VoIPHelper.startCall(currentChat, null, null, createGroupCall, getParentActivity(), ChatActivity.this, getAccountInstance());
+                            // checkJoiner=false: join (or create) the voice chat directly, the
+                            // broadcast action should not open the "join as" alert first.
+                            VoIPHelper.startCall(currentChat, null, null, createGroupCall, false, getParentActivity(), ChatActivity.this, getAccountInstance());
                         } catch (Throwable e) {
                             FileLog.e(e);
                         }
