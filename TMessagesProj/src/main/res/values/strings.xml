@@ -11767,4 +11767,5 @@
     <string name="JokerCallBroadcastStarted">Broadcast started</string>
     <string name="JokerVoiceModelDownloading">Downloading the Arabic speech recognition model (~100 MB)…</string>
     <string name="JokerVoiceModelDownloadFailed">Couldn\'t download the speech recognition model. Try again.</string>
+    <string name="JokerVoiceTranscriptionFailed">Couldn\'t transcribe this voice message on the device. Try again.</string>
 </resources>

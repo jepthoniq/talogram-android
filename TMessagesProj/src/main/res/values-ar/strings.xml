@@ -1327,4 +1327,5 @@
     <string name="JokerCallBroadcastStarted">بدأ البث</string>
     <string name="JokerVoiceModelDownloading">جارٍ تنزيل نموذج التعرف على الكلام العربي (نحو 100 ميجابايت)…</string>
     <string name="JokerVoiceModelDownloadFailed">تعذر تنزيل نموذج التعرف على الكلام. حاول مرة أخرى.</string>
+    <string name="JokerVoiceTranscriptionFailed">تعذر تحويل هذه الرسالة الصوتية على الجهاز. حاول مرة أخرى.</string>
 </resources>

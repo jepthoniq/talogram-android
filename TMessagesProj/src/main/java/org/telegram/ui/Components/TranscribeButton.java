@@ -741,7 +741,20 @@ public class TranscribeButton {
                     if (transcribeOperationsByDialogPosition != null) {
                         transcribeOperationsByDialogPosition.remove((Integer) reqInfoHash(messageObject));
                     }
-                    requestServerTranscription(messageObject, delegate);
+                    // The app talks to Telegram with an unofficial API id, so
+                    // the server always answers PREMIUM_ACCOUNT_REQUIRED. Falling
+                    // back to the server only produces the Premium bulletin, which
+                    // hides the real reason. Show the honest error instead; only
+                    // fall back to the server for Premium accounts, where it may
+                    // actually work.
+                    if (!UserConfig.getInstance(account).isPremium()) {
+                        try {
+                            android.widget.Toast.makeText(org.telegram.messenger.ApplicationLoader.applicationContext, org.telegram.messenger.R.string.JokerVoiceTranscriptionFailed, android.widget.Toast.LENGTH_LONG).show();
+                        } catch (Exception ignore) {
+                        }
+                    } else {
+                        requestServerTranscription(messageObject, delegate);
+                    }
                 });
             }
         });
