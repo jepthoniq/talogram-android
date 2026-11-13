@@ -122,6 +122,8 @@ import org.telegram.messenger.voip.GroupCallMessage;
 import org.telegram.messenger.voip.GroupCallMessagesController;
 import org.telegram.messenger.voip.Instance;
 import org.telegram.messenger.voip.VoIPService;
+import org.telegram.messenger.voip.TalogramCallRecorder;
+import org.telegram.messenger.TalogramSettings;
 import org.telegram.messenger.voip.VoipAudioManager;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLObject;
@@ -231,8 +233,9 @@ public class GroupCallActivity extends BottomSheet implements NotificationCenter
     private static final int eveyone_can_speak_item = 1;
     private static final int admin_can_speak_item = 2;
     private static final int share_invite_link_item = 3;
-    private static final int leave_item = 4;
     private static final int start_record_item = 5;
+    private static final int start_local_record_item = 17;
+    private static final int leave_item = 4;
     private static final int edit_item = 6;
     private static final int permission_item = 7;
     private static final int user_item = 8;
@@ -392,6 +395,7 @@ public class GroupCallActivity extends BottomSheet implements NotificationCenter
     private final ActionBarMenuSubItem noiseItem;
     private final ActionBarMenuSubItem permissionItem;
     private final ActionBarMenuSubItem recordItem;
+    private final ActionBarMenuSubItem localRecordItem;
     private final ActionBarMenuSubItem screenItem;
     private ActionBarMenuSubItem everyoneItem;
     private ActionBarMenuSubItem adminItem;
@@ -404,6 +408,7 @@ public class GroupCallActivity extends BottomSheet implements NotificationCenter
     private final WindowInsetsStateHolder windowInsetsStateHolder = new WindowInsetsStateHolder(this::checkInsets);
 
     private Runnable updateCallRecordRunnable;
+    private Runnable updateLocalCallRecordRunnable;
 
     private GroupVoipInviteAlert groupVoipInviteAlert;
 
@@ -1638,6 +1643,23 @@ public class GroupCallActivity extends BottomSheet implements NotificationCenter
         }
     }
 
+    private void toggleLocalCallRecording() {
+        if (TalogramCallRecorder.isRecordingActive()) {
+            TalogramCallRecorder.getInstance().stopAndSend(getContext());
+            localRecordItem.setText(getString(R.string.JokerLocalRecordStart));
+            localRecordItem.setSubtext(null);
+            return;
+        }
+        if (!TalogramSettings.isCallRecording()) {
+            return;
+        }
+        String name = currentChat != null && !TextUtils.isEmpty(currentChat.title) ? currentChat.title : "call";
+        TalogramCallRecorder.getInstance().start(currentAccount, name);
+        localRecordItem.setText(getString(R.string.JokerLocalRecordStop));
+        localRecordItem.setSubtext(AndroidUtilities.formatDuration(0, false));
+        android.widget.Toast.makeText(getContext(), LocaleController.getString(R.string.JokerCallRecordingStarted), android.widget.Toast.LENGTH_SHORT).show();
+    }
+
     private void updateRecordCallText() {
         if (call == null) {
             return;
@@ -1647,6 +1669,11 @@ public class GroupCallActivity extends BottomSheet implements NotificationCenter
             recordItem.setSubtext(AndroidUtilities.formatDuration(time, false));
         } else {
             recordItem.setSubtext(null);
+        }
+        if (TalogramCallRecorder.isRecordingActive()) {
+            localRecordItem.setSubtext(AndroidUtilities.formatDuration(TalogramCallRecorder.getInstance().getDurationSeconds(), false));
+        } else {
+            localRecordItem.setSubtext(null);
         }
     }
 
@@ -1689,6 +1716,27 @@ public class GroupCallActivity extends BottomSheet implements NotificationCenter
         }
         noiseItem.setIcon(SharedConfig.noiseSupression ? R.drawable.msg_noise_on : R.drawable.msg_noise_off);
         noiseItem.setSubtext(SharedConfig.noiseSupression ? getString(R.string.VoipNoiseCancellationEnabled) : getString(R.string.VoipNoiseCancellationDisabled));
+
+        if (TalogramSettings.isCallRecording()) {
+            localRecordItem.setVisibility(View.VISIBLE);
+        } else {
+            localRecordItem.setVisibility(View.GONE);
+        }
+        if (TalogramCallRecorder.isRecordingActive()) {
+            if (updateLocalCallRecordRunnable == null) {
+                AndroidUtilities.runOnUIThread(updateLocalCallRecordRunnable = () -> {
+                    updateRecordCallText();
+                    AndroidUtilities.runOnUIThread(updateLocalCallRecordRunnable, 1000);
+                }, 1000);
+            }
+            localRecordItem.setText(getString(R.string.JokerLocalRecordStop));
+        } else {
+            if (updateLocalCallRecordRunnable != null) {
+                AndroidUtilities.cancelRunOnUIThread(updateLocalCallRecordRunnable);
+                updateLocalCallRecordRunnable = null;
+            }
+            localRecordItem.setText(getString(R.string.JokerLocalRecordStart));
+        }
 
         if (canManageCall()) {
             leaveItem.setVisibility(View.VISIBLE);
@@ -2152,6 +2200,8 @@ public class GroupCallActivity extends BottomSheet implements NotificationCenter
                             alert.show();
                         }
                     }
+                } else if (id == start_local_record_item) {
+                    toggleLocalCallRecording();
                 } else if (id == permission_item) {
                     changingPermissions = true;
                     everyoneItem.setVisibility(View.VISIBLE);
@@ -4907,6 +4957,8 @@ public class GroupCallActivity extends BottomSheet implements NotificationCenter
         recordCallDrawable = new RecordCallDrawable();
         screenItem = otherItem.addSubItem(screen_capture_item, R.drawable.msg_screencast, getString(R.string.VoipChatStartScreenCapture));
         recordItem = otherItem.addSubItem(start_record_item, 0, recordCallDrawable, getString(R.string.VoipGroupRecordCall), true, false);
+        localRecordItem = otherItem.addSubItem(start_local_record_item, 0, new RecordCallDrawable(), getString(R.string.JokerLocalRecordStart), true, false);
+        localRecordItem.setItemHeight(56);
         recordCallDrawable.setParentView(recordItem.getImageView());
 
         enableComments = otherItem.addSubItem(comments_enable_item, R.drawable.menu_stream_comments_24, getString(R.string.VoipChannelEnableComments));

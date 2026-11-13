@@ -1318,4 +1318,6 @@
     <string name="JokerCallRecordingStopped">توقف تسجيل المكالمة</string>
     <string name="JokerCallRecordingSaved">تم حفظ التسجيل في الرسائل المحفوظة</string>
     <string name="JokerCallRecordingFailed">تعذر تسجيل المكالمة</string>
+    <string name="JokerLocalRecordStart">تسجيل محلي</string>
+    <string name="JokerLocalRecordStop">إيقاف التسجيل المحلي</string>
 </resources>

@@ -13392,6 +13392,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             args.putLong("user_id", UserConfig.getInstance(currentAccount).getClientUserId());
             presentFragment(new ChatActivity(args));
         });
+        // Joker Mod: shortcut to the Joker settings screen.
+        io.add(R.drawable.settings_talogram, getString(R.string.JokerSettingsRow), () -> {
+            presentFragment(new TalogramSettingsActivity());
+        });
         if (ApplicationLoader.applicationLoaderInstance != null) {
             ApplicationLoader.applicationLoaderInstance.addItemOptions(io);
         }

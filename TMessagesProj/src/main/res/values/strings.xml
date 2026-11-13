@@ -11758,4 +11758,6 @@
     <string name="JokerCallRecordingStopped">Call recording stopped</string>
     <string name="JokerCallRecordingSaved">Call recording saved to Saved Messages</string>
     <string name="JokerCallRecordingFailed">Couldn\'t record the call</string>
+    <string name="JokerLocalRecordStart">Record locally</string>
+    <string name="JokerLocalRecordStop">Stop local recording</string>
 </resources>
