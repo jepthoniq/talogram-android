@@ -1320,7 +1320,7 @@
     <string name="JokerCallRecordingFailed">تعذر تسجيل المكالمة</string>
     <string name="JokerLocalRecordStart">تسجيل محلي</string>
     <string name="JokerLocalRecordStop">إيقاف التسجيل المحلي</string>
-    <string name="JokerCallBroadcastPlay">تشغيل في المكالمة الصوتية</string>
+    <string name="JokerCallBroadcastPlay">تشغيل في المكالمة</string>
     <string name="JokerCallBroadcastStop">إيقاف البث في الصوت</string>
     <string name="JokerCallBroadcastDownloadFirst">حمّل الوسائط أولاً، ثم اضغط مرة أخرى</string>
     <string name="JokerCallBroadcastFailed">تعذر فك تشفير الصوت في هذه الوسائط</string>

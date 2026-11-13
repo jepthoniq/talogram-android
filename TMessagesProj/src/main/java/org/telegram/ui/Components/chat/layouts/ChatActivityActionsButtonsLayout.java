@@ -6,12 +6,10 @@ import static org.telegram.messenger.AndroidUtilities.lerp;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.PorterDuff;
-import android.graphics.PorterDuffColorFilter;
 import android.graphics.drawable.Drawable;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -71,16 +69,16 @@ public class ChatActivityActionsButtonsLayout extends LinearLayout {
         broadcastButton.button.setOnClickListener(v -> {});
         broadcastButton.direction = 0f;
         ScaleStateListAnimator.apply(broadcastButton.button, .065f, 2f);
-        addIconButton(broadcastButton, R.drawable.ic_joker_record_dot, true);
+        addTextView(broadcastButton, LocaleController.getString(R.string.JokerCallBroadcastPlay), R.drawable.call, true, 12);
 
-        addTextView(replyButton, LocaleController.getString(R.string.Reply), R.drawable.input_reply, false);
-        addTextView(forwardButton, LocaleController.getString(R.string.Forward), R.drawable.input_forward, true);
+        addTextView(replyButton, LocaleController.getString(R.string.Reply), R.drawable.input_reply, false, 21);
+        addTextView(forwardButton, LocaleController.getString(R.string.Forward), R.drawable.input_forward, true, 21);
 
         setOrientation(HORIZONTAL);
         setClipChildren(false);
 
         addView(replyButton.button, LayoutHelper.createLinear(0, 56, 1f, 1, 0, 0, 0));
-        addView(broadcastButton.button, LayoutHelper.createLinear(56, 56, Gravity.CENTER_VERTICAL, 4, 0, 4, 0));
+        addView(broadcastButton.button, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, 56, Gravity.CENTER_VERTICAL, 4, 0, 4, 0));
         addView(forwardButton.button, LayoutHelper.createLinear(0, 56, 1f, 0, 0, 1, 0));
     }
 
@@ -104,12 +102,12 @@ public class ChatActivityActionsButtonsLayout extends LinearLayout {
         return broadcastButton.button;
     }
 
-    private void addTextView(ButtonHolder button, String text, @DrawableRes int iconRes, boolean iconLeft) {
+    private void addTextView(ButtonHolder button, String text, @DrawableRes int iconRes, boolean iconLeft, int horizontalPaddingDp) {
         TextView forwardButton = new TextView(getContext());
         forwardButton.setText(text);
         forwardButton.setGravity(Gravity.CENTER_VERTICAL);
         forwardButton.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
-        forwardButton.setPadding(AndroidUtilities.dp(21), 0, AndroidUtilities.dp(21), 0);
+        forwardButton.setPadding(AndroidUtilities.dp(horizontalPaddingDp), 0, AndroidUtilities.dp(horizontalPaddingDp), 0);
         forwardButton.setCompoundDrawablePadding(AndroidUtilities.dp(6));
         ThemeBind.textColor(forwardButton, Theme.key_glass_defaultText, resourcesProvider);
         forwardButton.setTypeface(AndroidUtilities.bold());
@@ -122,21 +120,6 @@ public class ChatActivityActionsButtonsLayout extends LinearLayout {
         /*if (getDialogId() == UserObject.VERIFY) {
             forwardButton.setVisibility(View.GONE);
         }*/
-    }
-
-    private void addIconButton(ButtonHolder button, int iconRes, boolean redIcon) {
-        ImageView imageView = new ImageView(getContext());
-        imageView.setScaleType(ImageView.ScaleType.CENTER);
-        imageView.setImageDrawable(makeTintedIcon(iconRes, redIcon));
-        imageView.setContentDescription(LocaleController.getString(redIcon ? R.string.JokerCallBroadcastPlay : R.string.JokerCallBroadcastPlay));
-        button.iconView = imageView;
-        button.button.addView(imageView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER));
-    }
-
-    private Drawable makeTintedIcon(int iconRes, boolean redIcon) {
-        Drawable image = getContext().getResources().getDrawable(iconRes).mutate();
-        ThemeBind.drawableColorFilter(this, image, redIcon ? Theme.key_text_RedRegular : Theme.key_glass_defaultIcon, resourcesProvider, PorterDuff.Mode.MULTIPLY);
-        return image;
     }
 
     public void showReplyButton(boolean visible, boolean animated) {
@@ -166,13 +149,12 @@ public class ChatActivityActionsButtonsLayout extends LinearLayout {
         broadcastButton.button.setEnabled(enabled);
     }
 
-    // Swap the red dot for a stop square while a broadcast is running.
+    // Swap the label while a broadcast is running.
     public void setBroadcastButtonActive(boolean active) {
-        if (broadcastButton.iconView == null) {
+        if (broadcastButton.textView == null) {
             return;
         }
-        broadcastButton.iconView.setImageDrawable(makeTintedIcon(active ? R.drawable.ic_joker_record_stop : R.drawable.ic_joker_record_dot, true));
-        broadcastButton.iconView.setContentDescription(LocaleController.getString(active ? R.string.JokerCallBroadcastStop : R.string.JokerCallBroadcastPlay));
+        broadcastButton.textView.setText(LocaleController.getString(active ? R.string.JokerCallBroadcastStop : R.string.JokerCallBroadcastPlay));
     }
 
 
@@ -217,7 +199,6 @@ public class ChatActivityActionsButtonsLayout extends LinearLayout {
     private class ButtonHolder implements FactorAnimator.Target {
         public ChatActivityBlurredRoundButton button;
         public TextView textView;
-        public ImageView iconView;
         public float direction;
 
         public BoolAnimator visibilityAnimator = new BoolAnimator(0, this, CubicBezierInterpolator.EASE_OUT_QUINT, 320, true);
@@ -227,9 +208,6 @@ public class ChatActivityActionsButtonsLayout extends LinearLayout {
         public void onFactorChanged(int id, float factor, float fraction, FactorAnimator callee) {
             if (textView != null) {
                 textView.setAlpha(lerp(0.5f, 1, enabledAnimator.getFloatValue()));
-            }
-            if (iconView != null) {
-                iconView.setAlpha(lerp(0.5f, 1, enabledAnimator.getFloatValue()));
             }
             checkHolderPositionsAndVisibility(this);
         }
