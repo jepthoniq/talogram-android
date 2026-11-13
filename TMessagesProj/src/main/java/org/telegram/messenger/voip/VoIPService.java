@@ -231,6 +231,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 	private boolean switchingCamera;
 	private boolean isFrontFaceCamera = true;
 	private boolean isPrivateScreencast;
+	private boolean talogramVideoBroadcastActive;
 	private String lastError;
 	private PowerManager.WakeLock proximityWakelock;
 	private PowerManager.WakeLock cpuWakelock;
@@ -1413,8 +1414,40 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 		}
 	}
 
-	public void stopScreenCapture() {
-		if (groupCall == null || videoState[CAPTURE_DEVICE_SCREEN] != Instance.VIDEO_STATE_ACTIVE) {
+	// Joker Mod: use the broadcast video file as the outgoing video source. The
+	// audio is mixed into the mic by TalogramCallBroadcast; here we only swap
+	// the capturer. The capture device is recreated so VideoCapturerDevice sees
+	// TalogramCallBroadcast.isVideoBroadcasting() and selects the file capturer.
+	public void startVideoBroadcast() {
+		if (TalogramCallBroadcast.getVideoBroadcastPath() == null || currentState == STATE_ENDED || currentState == STATE_HANGING_UP) {
+			return;
+		}
+		talogramVideoBroadcastActive = true;
+		if (captureDevice[CAPTURE_DEVICE_CAMERA] != 0) {
+			if (tgVoip[CAPTURE_DEVICE_CAMERA] != null) {
+				tgVoip[CAPTURE_DEVICE_CAMERA].clearVideoCapturer();
+			}
+			NativeInstance.destroyVideoCapturer(captureDevice[CAPTURE_DEVICE_CAMERA]);
+			captureDevice[CAPTURE_DEVICE_CAMERA] = 0;
+		}
+		createCaptureDevice(false);
+		requestVideoCall(false);
+		setVideoState(false, Instance.VIDEO_STATE_ACTIVE);
+	}
+
+	public void stopVideoBroadcast() {
+		if (!talogramVideoBroadcastActive) {
+			return;
+		}
+		talogramVideoBroadcastActive = false;
+		setVideoState(false, Instance.VIDEO_STATE_INACTIVE);
+	}
+
+	public boolean isTalogramVideoBroadcastActive() {
+		return talogramVideoBroadcastActive;
+	}
+
+	public void stopScreenCapture() {		if (groupCall == null || videoState[CAPTURE_DEVICE_SCREEN] != Instance.VIDEO_STATE_ACTIVE) {
 			return;
 		}
 		TL_phone.leaveGroupCallPresentation req = new TL_phone.leaveGroupCallPresentation();
@@ -5637,6 +5670,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 			FileLog.d("Call " + getCallID() + " ended");
 		}
 		TalogramCallRecorder.getInstance().stopIfRecording();
+		talogramVideoBroadcastActive = false;
 		TalogramCallBroadcast.getInstance().stop();
 		isCallEnded = true;
 		if (groupCall != null && (!playedConnectedSound || onDestroyRunnable != null)) {

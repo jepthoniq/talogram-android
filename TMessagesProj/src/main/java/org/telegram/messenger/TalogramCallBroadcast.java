@@ -12,6 +12,7 @@
 package org.telegram.messenger;
 
 import org.telegram.messenger.FileLog;
+import org.telegram.messenger.voip.VoIPService;
 
 import android.content.Context;
 import android.media.MediaCodec;
@@ -58,6 +59,10 @@ public final class TalogramCallBroadcast {
     private final java.util.ArrayDeque<byte[]> playoutQueue = new java.util.ArrayDeque<>(64);
 
     private volatile String filePath;
+    // Set only for video messages, and only after their audio decoded fine.
+    // VideoCapturerDevice swaps the camera for a TalogramFileVideoCapturer
+    // while this is set, so the audience sees the video as well.
+    private volatile String videoPath;
 
     private TalogramCallBroadcast() {
     }
@@ -87,6 +92,15 @@ public final class TalogramCallBroadcast {
         return INSTANCE.filePath;
     }
 
+    public static String getVideoBroadcastPath() {
+        return INSTANCE.videoPath;
+    }
+
+    public static boolean isVideoBroadcasting() {
+        String path = INSTANCE.videoPath;
+        return INSTANCE.state == State.BROADCASTING && path != null && path.length() > 0;
+    }
+
     // Called by the WebRTC audio device module when the call audio format is known.
     public static void setOutputFormat(int sampleRate, int channels) {
         if (channels > 0) {
@@ -101,11 +115,24 @@ public final class TalogramCallBroadcast {
     }
 
     public void stop() {
+        boolean hadVideo = videoPath != null;
         state = State.IDLE;
         playingMessageId = 0;
         filePath = null;
+        videoPath = null;
         pcm = null;
         pcmOffset = 0;
+        synchronized (this) {
+            playoutQueue.clear();
+        }
+        if (hadVideo) {
+            AndroidUtilities.runOnUIThread(() -> {
+                VoIPService service = VoIPService.getSharedInstance();
+                if (service != null) {
+                    service.stopVideoBroadcast();
+                }
+            });
+        }
     }
 
     // Called from the user's menu action. The joinVoiceChat callback is used to open the
@@ -126,8 +153,10 @@ public final class TalogramCallBroadcast {
             return;
         }
         long messageId = message.getId();
+        final boolean videoMessage = message.isVideo() || message.isRoundVideo();
         this.playingMessageId = messageId;
         this.filePath = path;
+        this.videoPath = null;
         state = State.DECODING;
         Thread thread = new Thread(() -> {
             try {
@@ -139,15 +168,24 @@ public final class TalogramCallBroadcast {
                     });
                     return;
                 }
+                // A stop() or another message may have replaced this broadcast
+                // while the decoder was running.
+                if (state != State.DECODING || playingMessageId != messageId) {
+                    return;
+                }
                 synchronized (TalogramCallBroadcast.this) {
                     pcm = decoded;
                     pcmOffset = 0;
                 }
-                state = State.BROADCASTING;
-                if (joinVoiceChat != null) {
-                    joinVoiceChat.onJoin();
+                if (videoMessage) {
+                    videoPath = path;
                 }
+                state = State.BROADCASTING;
                 AndroidUtilities.runOnUIThread(() -> {
+                    if (joinVoiceChat != null) {
+                        joinVoiceChat.onJoin();
+                    }
+                    startVideoBroadcastWhenReady();
                     if (context != null) {
                         android.widget.Toast.makeText(context, LocaleController.getString(R.string.JokerCallBroadcastStarted), android.widget.Toast.LENGTH_SHORT).show();
                     }
@@ -161,6 +199,33 @@ public final class TalogramCallBroadcast {
             }
         }, "talogram-broadcast-decoder");
         thread.start();
+    }
+
+    // The voice chat may still be connecting when the menu action returns, so
+    // wait until the service reports itself joined before enabling the video
+    // capture. The broadcast can also end while we wait; the poll then dies.
+    public void startVideoBroadcastWhenReady() {
+        if (!isVideoBroadcasting()) {
+            return;
+        }
+        AndroidUtilities.runOnUIThread(new Runnable() {
+            private int attempts;
+
+            @Override
+            public void run() {
+                if (!isVideoBroadcasting()) {
+                    return;
+                }
+                VoIPService service = VoIPService.getSharedInstance();
+                if (service != null && service.isJoined()) {
+                    service.startVideoBroadcast();
+                    return;
+                }
+                if (++attempts < 100) {
+                    AndroidUtilities.runOnUIThread(this, 300);
+                }
+            }
+        });
     }
 
     // Mixes the broadcast PCM into the provided buffer (mic) in-place.

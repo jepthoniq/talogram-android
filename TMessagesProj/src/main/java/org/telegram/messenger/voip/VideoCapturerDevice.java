@@ -14,6 +14,7 @@ import android.view.WindowManager;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.FileLog;
+import org.telegram.messenger.TalogramCallBroadcast;
 import org.webrtc.Camera1Enumerator;
 import org.webrtc.Camera2Enumerator;
 import org.webrtc.CameraEnumerator;
@@ -140,6 +141,22 @@ public class VideoCapturerDevice {
                 return;
             }
             nativePtr = ptr;
+            if (!"screen".equals(deviceName) && TalogramCallBroadcast.isVideoBroadcasting()) {
+                final String videoPath = TalogramCallBroadcast.getVideoBroadcastPath();
+                if (videoCapturer == null && videoPath != null && !videoPath.isEmpty()) {
+                    videoCapturer = new TalogramFileVideoCapturer(videoPath);
+                    handler.post(() -> {
+                        if (nativePtr == 0 || videoCapturer == null) {
+                            return;
+                        }
+                        nativeCapturerObserver = nativeGetJavaVideoCapturerObserver(nativePtr);
+                        videoCapturer.initialize(null, ApplicationLoader.applicationContext, nativeCapturerObserver);
+                        FileLog.d("VideoCapturerDevice init(" + ptr + "): videoCapturer.startCapture FILE");
+                        videoCapturer.startCapture(CAPTURE_WIDTH, CAPTURE_HEIGHT, CAPTURE_FPS);
+                    });
+                }
+                return;
+            }
             if ("screen".equals(deviceName)) {
                 if (Build.VERSION.SDK_INT < 21) {
                     return;
@@ -263,6 +280,11 @@ public class VideoCapturerDevice {
             return null;
         }
         return ((ScreenCapturerAndroid) instance[1].videoCapturer).getMediaProjection();
+    }
+
+    public static boolean isFileBroadcasting() {
+        VideoCapturerDevice device = instance[0];
+        return device != null && device.videoCapturer instanceof TalogramFileVideoCapturer;
     }
 
     private void onAspectRatioRequested(float aspectRatio) {
