@@ -11732,6 +11732,7 @@
     <string name="JokerStoryMarkViewed">Mark as viewed</string>
     <string name="JokerSubscribeTitle">Subscription Required</string>
     <string name="JokerSubscribeMessage">To activate Joker features, please join @aljokeruserbot then check again.</string>
+    <string name="JokerSubscriptionNotFound">Subscription not found. Make sure you joined the channel and try again.</string>
     <string name="JokerJoinChannel">Join Channel</string>
     <string name="JokerCheckAgain">Check Again</string>
     <string name="JokerDebugLog">Error Log</string>

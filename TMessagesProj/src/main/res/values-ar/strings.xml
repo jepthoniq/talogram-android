@@ -1292,6 +1292,7 @@
     <string name="JokerStoryMarkViewed">تحديد كمشاهد</string>
     <string name="JokerSubscribeTitle">الاشتراك مطلوب</string>
     <string name="JokerSubscribeMessage">لتفعيل ميزات جوكر، يرجى الانضمام إلى قناة @aljokeruserbot ثم المحاولة مرة أخرى.</string>
+    <string name="JokerSubscriptionNotFound">لم يتم العثور على اشتراك. تأكد من انضمامك إلى القناة وحاول مرة أخرى.</string>
     <string name="JokerJoinChannel">انضم إلى القناة</string>
     <string name="JokerCheckAgain">تحقق مرة أخرى</string>
     <string name="JokerDebugLog">سجل الأخطاء</string>

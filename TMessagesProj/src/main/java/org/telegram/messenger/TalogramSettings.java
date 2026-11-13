@@ -39,6 +39,20 @@ public final class TalogramSettings {
     public static final String KEY_STORY_FREEZE = "story_freeze";
     public static final String KEY_QUICK_REPLIES = "quick_replies_json";
 
+    // Every Joker feature toggle. Used by the subscription gate: when the
+    // membership check fails (for example after leaving the channel) all of
+    // these are switched off together.
+    private static final String[] FEATURE_KEYS = new String[] {
+            KEY_GHOST_MODE,
+            KEY_FREEZE_LAST_SEEN,
+            KEY_KEEP_DELETED,
+            KEY_FORCE_PREMIUM_TRANSLATION,
+            KEY_ALLOW_100_ACCOUNTS,
+            KEY_BYPASS_COPY_PROTECTION,
+            KEY_AUTO_SAVE_MEDIA,
+            KEY_STORY_FREEZE
+    };
+
     public static final class QuickReply {
         public String id;
         public String shortcut;
@@ -77,36 +91,54 @@ public final class TalogramSettings {
         }
     }
 
+    // Joker Mod: every feature requires membership in @aljokeruserbot while the gate is enabled.
+    private static boolean granted() {
+        return TalogramSubscription.isAccessGranted();
+    }
+
     public static boolean isGhostMode() {
-        return getBoolean(KEY_GHOST_MODE);
+        return granted() && getBoolean(KEY_GHOST_MODE);
     }
 
     public static boolean isFreezeLastSeen() {
-        return getBoolean(KEY_FREEZE_LAST_SEEN);
+        return granted() && getBoolean(KEY_FREEZE_LAST_SEEN);
     }
 
     public static boolean isKeepDeletedMessages() {
-        return getBoolean(KEY_KEEP_DELETED);
+        return granted() && getBoolean(KEY_KEEP_DELETED);
     }
 
     public static boolean isForcePremiumTranslation() {
-        return getBoolean(KEY_FORCE_PREMIUM_TRANSLATION);
+        return granted() && getBoolean(KEY_FORCE_PREMIUM_TRANSLATION);
     }
 
     public static boolean isAllow100Accounts() {
-        return getBoolean(KEY_ALLOW_100_ACCOUNTS);
+        return granted() && getBoolean(KEY_ALLOW_100_ACCOUNTS);
     }
 
     public static boolean isBypassCopyProtection() {
-        return getBoolean(KEY_BYPASS_COPY_PROTECTION);
+        return granted() && getBoolean(KEY_BYPASS_COPY_PROTECTION);
     }
 
     public static boolean isAutoSaveSelfDestructMedia() {
-        return getBoolean(KEY_AUTO_SAVE_MEDIA);
+        return granted() && getBoolean(KEY_AUTO_SAVE_MEDIA);
     }
 
     public static boolean isStoryFreeze() {
-        return getBoolean(KEY_STORY_FREEZE);
+        return granted() && getBoolean(KEY_STORY_FREEZE);
+    }
+
+    // Called when the subscription is lost: switch every Joker feature off.
+    public static void resetAllFeatureToggles() {
+        android.content.SharedPreferences p = prefs();
+        if (p == null) {
+            return;
+        }
+        android.content.SharedPreferences.Editor editor = p.edit();
+        for (String key : FEATURE_KEYS) {
+            editor.putBoolean(key, false);
+        }
+        editor.apply();
     }
 
     private static final HashSet<String> locallyDeletedMessages = new HashSet<>();

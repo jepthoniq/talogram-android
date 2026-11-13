@@ -50,6 +50,35 @@ public final class TalogramSubscription {
                 .edit().putBoolean(KEY_CHANNEL_SUBSCRIBED, value).apply();
     }
 
+    // Joker Mod: the single gate used by every Joker feature.
+    public static boolean isAccessGranted() {
+        return !isGateEnabled() || isSubscribedCached();
+    }
+
+    // Joker Mod: called as soon as the user leaves the required channel (or the membership check fails).
+    // The cached membership is dropped and every Joker feature is switched off.
+    public static void clearSubscriptionStatus() {
+        if (ApplicationLoader.applicationContext == null) {
+            return;
+        }
+        ApplicationLoader.applicationContext
+                .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit().putBoolean(KEY_CHANNEL_SUBSCRIBED, false).apply();
+        TalogramSettings.resetAllFeatureToggles();
+    }
+
+    // Joker Mod: detect whether the given chat (with a public username) is the required subscription channel.
+    public static boolean isJokerChannel(TLRPC.Chat chat) {
+        if (chat == null) {
+            return false;
+        }
+        String username = ChatObject.getPublicUsername(chat);
+        if (username == null) {
+            return false;
+        }
+        return username.equalsIgnoreCase(CHANNEL_USERNAME);
+    }
+
     public static void checkSubscription(int currentAccount, Utilities.Callback<Boolean> callback) {
         if (ApplicationLoader.applicationContext == null) {
             callback.run(isSubscribedCached());
@@ -90,7 +119,7 @@ public final class TalogramSubscription {
             ConnectionsManager.getInstance(currentAccount).sendRequest(req2, (res2, err2) -> AndroidUtilities.runOnUIThread(() -> {
                 if (err2 != null) {
                     if (err2.code == 400 || err2.code == 403) {
-                        saveSubscribed(false);
+                        clearSubscriptionStatus();
                         callback.run(false);
                         return;
                     }
@@ -107,7 +136,11 @@ public final class TalogramSubscription {
                         }
                     }
                 }
-                saveSubscribed(subscribed);
+                if (subscribed) {
+                    saveSubscribed(true);
+                } else {
+                    clearSubscriptionStatus();
+                }
                 callback.run(subscribed);
             }));
         }));

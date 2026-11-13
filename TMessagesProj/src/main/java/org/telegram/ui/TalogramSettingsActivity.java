@@ -17,6 +17,9 @@ import androidx.recyclerview.widget.RecyclerView;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.TalogramSettings;
+import org.telegram.messenger.TalogramSubscription;
+import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.FileLog;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
@@ -26,6 +29,11 @@ import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Cells.TextSettingsCell;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
+
+import android.view.Gravity;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 public class TalogramSettingsActivity extends BaseFragment {
 
@@ -74,19 +82,115 @@ public class TalogramSettingsActivity extends BaseFragment {
 
         FrameLayout frameLayout = new FrameLayout(context);
         fragmentView = frameLayout;
+        refreshContent(context);
+        return fragmentView;
+    }
 
-        listView = new RecyclerListView(context);
-        listView.setSections();
-        listView.setSectionsDrawBackground(true);
-        listView.setLayoutManager(new LinearLayoutManager(context));
-        listView.setVerticalScrollBarEnabled(false);
-        listView.setAdapter(adapter = new ListAdapter(context));
-        listView.setOnItemClickListener((view, position) -> onRowClicked(position));
-        frameLayout.addView(listView, LayoutHelper.createFrame(
+    @Override
+    public void onResume() {
+        super.onResume();
+        // Joker Mod: re-verify membership every time the screen appears. If the user left the
+        // channel, the screen flips back to the "subscription required" view automatically.
+        refreshContent(getContext());
+    }
+
+    private void refreshContent(Context context) {
+        if (context == null || !(fragmentView instanceof FrameLayout)) {
+            return;
+        }
+        FrameLayout root = (FrameLayout) fragmentView;
+        root.removeAllViews();
+        if (TalogramSubscription.isGateEnabled() && !TalogramSubscription.isSubscribedCached()) {
+            // لا تُفتح القائمة إطلاقاً قبل الاشتراك في القناة: تظهر شاشة الاشتراك فقط.
+            root.addView(createGateLayout(context, root));
+            TalogramSubscription.checkSubscription(getCurrentAccount(), subscribed -> {
+                if (subscribed) {
+                    AndroidUtilities.runOnUIThread(() -> refreshContent(context));
+                }
+            });
+            return;
+        }
+        if (this.listView == null) {
+            this.listView = new RecyclerListView(context);
+            this.listView.setSections();
+            this.listView.setSectionsDrawBackground(true);
+            this.listView.setLayoutManager(new LinearLayoutManager(context));
+            this.listView.setVerticalScrollBarEnabled(false);
+            this.listView.setAdapter(adapter = new ListAdapter(context));
+            this.listView.setOnItemClickListener((view, position) -> onRowClicked(position));
+        }
+        root.addView(this.listView, LayoutHelper.createFrame(
                 LayoutHelper.MATCH_PARENT,
                 LayoutHelper.MATCH_PARENT
         ));
-        return fragmentView;
+    }
+
+    private LinearLayout createGateLayout(Context context, FrameLayout root) {
+        LinearLayout layout = new LinearLayout(context);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setGravity(Gravity.CENTER);
+        layout.setPadding(AndroidUtilities.dp(32), AndroidUtilities.dp(32), AndroidUtilities.dp(32), AndroidUtilities.dp(32));
+
+        ImageView icon = new ImageView(context);
+        icon.setImageResource(R.drawable.settings_talogram);
+        icon.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        layout.addView(icon, LayoutHelper.createLinear(72, 72, Gravity.CENTER_HORIZONTAL));
+
+        TextView title = new TextView(context);
+        title.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+        title.setTypeface(AndroidUtilities.bold());
+        title.setTextSize(18);
+        title.setText(LocaleController.getString(R.string.JokerSubscribeTitle));
+        layout.addView(title, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 16, 0, 0));
+
+        TextView info = new TextView(context);
+        info.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2));
+        info.setTextSize(14);
+        info.setGravity(Gravity.CENTER);
+        info.setText(LocaleController.getString(R.string.JokerSubscribeMessage));
+        layout.addView(info, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 8, 0, 0));
+
+        TextView joinButton = createGateButton(context, LocaleController.getString(R.string.JokerJoinChannel), true, () -> {
+            try {
+                org.telegram.messenger.browser.Browser.openUrl(getParentActivity(), TalogramSubscription.CHANNEL_LINK);
+            } catch (Exception e) {
+                FileLog.e(e);
+            }
+        });
+        layout.addView(joinButton, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 24, 0, 0));
+
+        TextView checkButton = createGateButton(context, LocaleController.getString(R.string.JokerCheckAgain), false, () -> {
+            TalogramSubscription.checkSubscription(getCurrentAccount(), subscribed -> {
+                AndroidUtilities.runOnUIThread(() -> {
+                    refreshContent(context);
+                    if (!subscribed) {
+                        android.widget.Toast.makeText(getParentActivity(), LocaleController.getString(R.string.JokerSubscriptionNotFound), android.widget.Toast.LENGTH_LONG).show();
+                    }
+                });
+            });
+        });
+        layout.addView(checkButton, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 12, 0, 0));
+
+        return layout;
+    }
+
+    private TextView createGateButton(Context context, CharSequence text, boolean primary, Runnable action) {
+        TextView button = new TextView(context);
+        button.setTypeface(AndroidUtilities.bold());
+        button.setTextSize(15);
+        button.setGravity(Gravity.CENTER);
+        button.setText(text);
+        if (primary) {
+            button.setTextColor(Theme.getColor(Theme.key_featuredStickers_buttonText));
+            button.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(22), Theme.getColor(Theme.key_featuredStickers_addButton)));
+        } else {
+            button.setTextColor(Theme.getColor(Theme.key_featuredStickers_buttonText));
+            button.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(22), Theme.getColor(Theme.key_featuredStickers_addButton)));
+            button.setAlpha(0.9f);
+        }
+        button.setPadding(AndroidUtilities.dp(24), AndroidUtilities.dp(12), AndroidUtilities.dp(24), AndroidUtilities.dp(12));
+        button.setOnClickListener(v -> action.run());
+        return button;
     }
 
     @Override

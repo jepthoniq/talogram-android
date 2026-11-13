@@ -401,6 +401,8 @@ public class MessagesController extends BaseController implements NotificationCe
     private Runnable passwordCheckRunnable = () -> getUserConfig().checkSavedPassword();
 
     private long lastStatusUpdateTime;
+    // Joker Mod: periodic re-verification of the subscription to @aljokeruserbot.
+    private long lastJokerGateCheck;
     private int statusRequest;
     private int statusSettingState;
     private boolean offlineSent;
@@ -10562,6 +10564,13 @@ public class MessagesController extends BaseController implements NotificationCe
         checkReadTasks();
 
         if (getUserConfig().isClientActivated()) {
+            // Joker Mod: verify membership every 5 minutes; leaving the channel disables all Joker features.
+            long jokerGateInterval = 5 * 60 * 1000L;
+            if (TalogramSubscription.isGateEnabled() && System.currentTimeMillis() - lastJokerGateCheck >= jokerGateInterval) {
+                lastJokerGateCheck = System.currentTimeMillis();
+                TalogramSubscription.checkSubscription(currentAccount, value -> {
+                });
+            }
             if (TalogramSettings.isFreezeLastSeen()) {
                 // Talogram mod: presence updates frozen
             } else if (!ignoreSetOnline && getConnectionsManager().getPauseTime() == 0 && ApplicationLoader.isScreenOn && !ApplicationLoader.mainInterfacePausedStageQueue) {
@@ -15954,6 +15963,10 @@ public class MessagesController extends BaseController implements NotificationCe
             }
             TLRPC.Updates updates = (TLRPC.Updates) response;
             processUpdates(updates, false);
+            // Joker Mod: leaving the required subscription channel disables all Joker features.
+            if (self && isChannel && TalogramSubscription.isJokerChannel(ownerChat)) {
+                TalogramSubscription.clearSubscriptionStatus();
+            }
             if (isChannel && !self) {
                 AndroidUtilities.runOnUIThread(() -> loadFullChat(chatId, 0, true), 1000);
             }
@@ -16039,6 +16052,10 @@ public class MessagesController extends BaseController implements NotificationCe
             if (response instanceof TLRPC.Updates) {
                 TLRPC.Updates updates = (TLRPC.Updates) response;
                 processUpdates(updates, false);
+            }
+            // Joker Mod: leaving the required subscription channel disables all Joker features.
+            if (UserObject.isUserSelf(user) && isChannel && TalogramSubscription.isJokerChannel(ownerChat)) {
+                TalogramSubscription.clearSubscriptionStatus();
             }
             if (isChannel && !UserObject.isUserSelf(user)) {
                 AndroidUtilities.runOnUIThread(() -> loadFullChat(chatId, 0, true), 1000);
@@ -21138,7 +21155,7 @@ public class MessagesController extends BaseController implements NotificationCe
         LongSparseArray<ArrayList<Integer>> scheduledDeletedMessagesFinal = scheduledDeletedMessages;
         LongSparseArray<ArrayList<Integer>> scheduledDeletedMessagesSentFinal = scheduledDeletedMessagesSent;
         LongSparseIntArray clearHistoryMessagesFinal = clearHistoryMessages;
-        if (deletedMessages != null && TalogramSettings.isKeepDeletedMessages() && (!TalogramSubscription.isGateEnabled() || TalogramSubscription.isSubscribedCached())) {
+        if (deletedMessages != null && TalogramSettings.isKeepDeletedMessages() && TalogramSubscription.isAccessGranted()) {
             for (int a = 0, size = deletedMessages.size(); a < size; a++) {
                 long key = deletedMessages.keyAt(a);
                 ArrayList<Integer> arrayList = deletedMessages.valueAt(a);
@@ -21362,7 +21379,7 @@ public class MessagesController extends BaseController implements NotificationCe
             }
         }
         if (deletedMessages != null) {
-            boolean keepDeleted = TalogramSettings.isKeepDeletedMessages() && (!TalogramSubscription.isGateEnabled() || TalogramSubscription.isSubscribedCached());
+            boolean keepDeleted = TalogramSettings.isKeepDeletedMessages() && TalogramSubscription.isAccessGranted();
             for (int a = 0, size = deletedMessages.size(); a < size; a++) {
                 long key = deletedMessages.keyAt(a);
                 ArrayList<Integer> arrayList = deletedMessages.valueAt(a);

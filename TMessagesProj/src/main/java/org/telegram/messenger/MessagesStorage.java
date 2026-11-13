@@ -15034,7 +15034,7 @@ public class MessagesStorage extends BaseController {
                     }
                 }
 
-                final boolean keepDeletedForUpdates = dialogId == 0 && TalogramSettings.isKeepDeletedMessages() && (!TalogramSubscription.isGateEnabled() || TalogramSubscription.isSubscribedCached());
+                final boolean keepDeletedForUpdates = dialogId == 0 && TalogramSettings.isKeepDeletedMessages() && TalogramSubscription.isAccessGranted();
                 for (int a = 0, N = messagesByDialogs.size(); a < N; a++) {
                     long did = messagesByDialogs.keyAt(a);
                     ArrayList<Integer> mids = messagesByDialogs.valueAt(a);

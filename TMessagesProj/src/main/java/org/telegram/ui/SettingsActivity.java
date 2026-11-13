@@ -1013,35 +1013,9 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
     }
 
     private void openJokerSettings() {
-        if (!TalogramSubscription.isGateEnabled()) {
-            presentSettingFragment(new TalogramSettingsActivity());
-            return;
-        }
-        TalogramSubscription.checkSubscription(currentAccount, subscribed -> {
-            AndroidUtilities.runOnUIThread(() -> {
-                if (subscribed) {
-                    presentSettingFragment(new TalogramSettingsActivity());
-                } else {
-                    showSubscriptionRequiredDialog();
-                }
-            });
-        });
-    }
-
-    private void showSubscriptionRequiredDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity(), resourceProvider);
-        builder.setTitle(LocaleController.getString(R.string.JokerSubscribeTitle));
-        builder.setMessage(LocaleController.getString(R.string.JokerSubscribeMessage));
-        builder.setPositiveButton(LocaleController.getString(R.string.JokerJoinChannel), (dialog, which) -> {
-            try {
-                Browser.openUrl(getParentActivity(), TalogramSubscription.CHANNEL_LINK);
-            } catch (Exception e) {
-                FileLog.e(e);
-            }
-        });
-        builder.setNeutralButton(LocaleController.getString(R.string.JokerCheckAgain), (dialog, which) -> openJokerSettings());
-        builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
-        showDialog(builder.create());
+        // Joker Mod: the screen itself shows the "subscription required" gate when the user is not a
+        // member of the channel, so simply open it here.
+        presentSettingFragment(new TalogramSettingsActivity());
     }
 
     private boolean onLongClick(UItem item, View view, int position, float x, float y) {
