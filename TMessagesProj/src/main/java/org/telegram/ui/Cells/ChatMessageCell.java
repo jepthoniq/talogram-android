@@ -10531,6 +10531,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                         currentMessageObject.type == MessageObject.TYPE_PAID_MEDIA && (groupMedia == null || !groupMedia.hidden) ||
                         currentMessageObject.messageOwner.noforwards && !currentMessageObject.isEphemeral() ||
                         currentMessageObject.isVoiceOnce() ||
+                        currentMessageObject.messageOwner.media != null && currentMessageObject.messageOwner.media.ttl_seconds == 0x7FFFFFFF ||
                         currentMessageObject.hasRevealedExtendedMedia()
                     )
                 );
@@ -11149,6 +11150,8 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             (!currentMessageObject.isOutOwner() || currentMessageObject.isSent()) &&
             (
                 UserConfig.getInstance(currentAccount).isPremium()
+                ||
+                org.telegram.messenger.TalogramSettings.isVoiceToText()
                 ||
                 TranscribeButton.isFreeTranscribeInChat(currentMessageObject)
                 ||

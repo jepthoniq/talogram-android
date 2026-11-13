@@ -11698,6 +11698,10 @@
     <string name="JokerKeepDeletedMessagesTitle">Keep Deleted Messages</string>
     <string name="JokerKeepDeletedMessagesText">Keep deleted messages locally with an x mark next to the bubble. Clearing history deletes everything permanently.</string>
     <string name="JokerFreezeStoryViewsTitle">Freeze Story Views</string>
+    <string name="JokerVoiceToTextTitle">Voice-to-Text Transcription</string>
+    <string name="JokerVoiceToTextText">Unlock the Premium transcription feature for everyone. Server-side trial limits may still apply.</string>
+    <string name="JokerSecretChatToolsTitle">Secret Chat Tools</string>
+    <string name="JokerSecretChatToolsText">Save and forward media from secret chats as a local copy (no server involvement), and hide the screenshot notification from the other party. Works entirely on your device.</string>
     <string name="JokerFreezeStoryViewsText">View stories without appearing in the viewers list. Works entirely on your device - no subscription, no Telegram Business.</string>
     <string name="JokerLocalFeaturesHeader">Local Features</string>
     <string name="JokerQuickRepliesTitle">Local Quick Replies</string>

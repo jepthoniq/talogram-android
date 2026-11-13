@@ -37,6 +37,8 @@ public final class TalogramSettings {
     public static final String KEY_BYPASS_COPY_PROTECTION = "bypass_copy_protection";
     public static final String KEY_AUTO_SAVE_MEDIA = "auto_save_self_destruct_media";
     public static final String KEY_STORY_FREEZE = "story_freeze";
+    public static final String KEY_VOICE_TO_TEXT = "joker_voice_to_text";
+    public static final String KEY_SECRET_CHAT_TOOLS = "joker_secret_chat_tools";
     public static final String KEY_QUICK_REPLIES = "quick_replies_json";
 
     // Every Joker feature toggle. Used by the subscription gate: when the
@@ -50,7 +52,9 @@ public final class TalogramSettings {
             KEY_ALLOW_100_ACCOUNTS,
             KEY_BYPASS_COPY_PROTECTION,
             KEY_AUTO_SAVE_MEDIA,
-            KEY_STORY_FREEZE
+            KEY_STORY_FREEZE,
+            KEY_VOICE_TO_TEXT,
+            KEY_SECRET_CHAT_TOOLS
     };
 
     public static final class QuickReply {
@@ -82,6 +86,11 @@ public final class TalogramSettings {
     public static boolean getBoolean(String key) {
         android.content.SharedPreferences p = prefs();
         return p != null && p.getBoolean(key, false);
+    }
+
+    public static boolean getBoolean(String key, boolean defaultValue) {
+        android.content.SharedPreferences p = prefs();
+        return p == null || p.getBoolean(key, defaultValue);
     }
 
     public static void setBoolean(String key, boolean value) {
@@ -126,6 +135,18 @@ public final class TalogramSettings {
 
     public static boolean isStoryFreeze() {
         return granted() && getBoolean(KEY_STORY_FREEZE);
+    }
+
+    // Joker Mod: transcription is a Premium feature on Telegram, but the mod opens the button for everyone.
+    // Server-side limits still apply (premium plan/trial), so this only removes the client-side gate.
+    public static boolean isVoiceToText() {
+        return granted() && getBoolean(KEY_VOICE_TO_TEXT, true);
+    }
+
+    // Joker Mod: master switch for the secret chat tools (save media, forward as a local copy and
+    // screenshot notification suppression). Defaults to on.
+    public static boolean isSecretChatTools() {
+        return granted() && getBoolean(KEY_SECRET_CHAT_TOOLS, true);
     }
 
     // Called when the subscription is lost: switch every Joker feature off.

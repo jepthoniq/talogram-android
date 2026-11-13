@@ -8731,7 +8731,7 @@ public class ChatActivity extends BaseFragment implements
         chatScrollHelper.setAnimationCallback(chatScrollHelperCallback);
 
         flagSecure = new FlagSecureReason(getParentActivity().getWindow(), () ->
-            currentEncryptedChat != null ||
+            (currentEncryptedChat != null && !org.telegram.messenger.TalogramSettings.isSecretChatTools()) ||
             isPeerNoForwards()
         );
 
@@ -34419,6 +34419,115 @@ public class ChatActivity extends BaseFragment implements
         return fragment;
     }
 
+    private static boolean allMessagesAreSecretChat(ArrayList<MessageObject> messages) {
+        if (messages == null || messages.isEmpty()) {
+            return false;
+        }
+        for (MessageObject message : messages) {
+            if (message == null || message.messageOwner == null
+                    || !(message.messageOwner instanceof TLRPC.TL_message_secret)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // Joker Mod: Secret Chat Tools — forward secret messages as re-uploads of the local files.
+    // The server refuses to forward secret-chat messages, so each message is re-created in the
+    // target dialog as regular media (photos/videos/documents/voices as documents).
+    private void forwardSecretChatMessagesByLocalCopy(ArrayList<MessageObject> secretMessages, long dialogId, CharSequence userMessageText, boolean notify, int scheduleDate, int scheduleRepeatPeriod) {
+        ArrayList<SendMessagesHelper.SendingMediaInfo> mediaPhotos = new ArrayList<>();
+        ArrayList<SendMessagesHelper.SendingMediaInfo> mediaDocuments = new ArrayList<>();
+        StringBuilder pendingText = new StringBuilder();
+
+        for (MessageObject messageObject : secretMessages) {
+            TLRPC.Message secretMessage = messageObject.messageOwner;
+            String caption = secretMessage.message != null ? secretMessage.message.toString() : null;
+            String path = null;
+            if (!TextUtils.isEmpty(secretMessage.attachPath)) {
+                File f = new File(secretMessage.attachPath);
+                if (f.exists()) {
+                    path = f.getAbsolutePath();
+                }
+            }
+            if (TextUtils.isEmpty(path)) {
+                File fallback = FileLoader.getInstance(currentAccount).getPathToMessage(secretMessage);
+                if (fallback != null && fallback.exists()) {
+                    path = fallback.getAbsolutePath();
+                }
+            }
+
+            TLRPC.Document document = messageObject.getDocument();
+            boolean isPhoto = secretMessage.media instanceof TLRPC.TL_messageMediaPhoto;
+            boolean isVideoDocument = document != null && MessageObject.isVideoDocument(document);
+            if (isPhoto) {
+                if (TextUtils.isEmpty(path)) {
+                    continue;
+                }
+                SendMessagesHelper.SendingMediaInfo info = new SendMessagesHelper.SendingMediaInfo();
+                info.imagePath = path;
+                info.path = path;
+                info.caption = caption;
+                info.entities = secretMessage.entities != null && !secretMessage.entities.isEmpty() ? new ArrayList<>(secretMessage.entities) : null;
+                info.isVideo = false;
+                mediaPhotos.add(info);
+            } else if (document != null && !TextUtils.isEmpty(path)) {
+                SendMessagesHelper.SendingMediaInfo info = new SendMessagesHelper.SendingMediaInfo();
+                info.imagePath = path;
+                info.path = path;
+                info.caption = caption;
+                info.entities = secretMessage.entities != null && !secretMessage.entities.isEmpty() ? new ArrayList<>(secretMessage.entities) : null;
+                info.isVideo = isVideoDocument;
+                mediaDocuments.add(info);
+            } else {
+                // Text-only secret message: buffer as text
+                if (caption != null && caption.length() > 0) {
+                    pendingText.append(caption).append('\n');
+                }
+            }
+        }
+
+        // 1) text chunks as plain messages
+        if (pendingText.length() > 0) {
+            String text = pendingText.toString().trim();
+            if (text.length() > 0) {
+                SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(text, dialogId, null, null, null, false, null, null, null, notify, scheduleDate, scheduleRepeatPeriod, null, false);
+                params.sendMessageChatArguments = getMessageChatSendParams();
+                params.monoForumPeer = getSendMonoForumPeerId();
+                params.entities = null;
+                getSendMessagesHelper().sendMessage(params);
+            }
+        }
+        AccountInstance accountInstance = AccountInstance.getInstance(currentAccount);
+        // 2) forwarded photos/videos (as album or single items)
+        if (!mediaPhotos.isEmpty()) {
+            SendMessagesHelper.prepareSendingMedia(accountInstance, mediaPhotos, dialogId, null, null, null, null, false, true, null, notify, scheduleDate, scheduleRepeatPeriod, 0, false, null, getMessageChatSendParams(), 0, false, 0, getSendMonoForumPeerId(), getSendMessageSuggestionParams());
+        }
+        // 3) documents (voice, video files, files, gifs, stickers, etc.) - sent as documents
+        for (SendMessagesHelper.SendingMediaInfo info : mediaDocuments) {
+            ArrayList<String> onePath = new ArrayList<>();
+            onePath.add(info.path);
+            ArrayList<String> oneOriginal = new ArrayList<>();
+            oneOriginal.add(info.path);
+            String mime = "application/octet-stream";
+            try {
+                String extension = android.webkit.MimeTypeMap.getFileExtensionFromUrl(info.path);
+                String map = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
+                if (map != null) {
+                    mime = map;
+                }
+            } catch (Exception ignored) {
+            }
+            SendMessagesHelper.prepareSendingDocuments(accountInstance, onePath, oneOriginal, null, info.caption, info.entities, mime, dialogId, null, null, null, null, null, notify, scheduleDate, scheduleRepeatPeriod, null, getMessageChatSendParams(), 0, false, 0, getSendMonoForumPeerId(), getSendMessageSuggestionParams());
+        }
+        // 4) text typed into the forward sheet (if any)
+        if (userMessageText != null && userMessageText.length() > 0) {
+            SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(userMessageText.toString(), dialogId, null, null, null, false, null, null, null, notify, scheduleDate, scheduleRepeatPeriod, null, false);
+            params.monoForumPeer = getSendMonoForumPeerId();
+            getSendMessagesHelper().sendMessage(params);
+        }
+    }
+
     private void saveMessageToGallery(MessageObject messageObject) {
         String path = messageObject.messageOwner.attachPath;
         if (!TextUtils.isEmpty(path)) {
@@ -35577,6 +35686,30 @@ public class ChatActivity extends BaseFragment implements
                 }
             }
         }
+        // Joker Mod: secret messages can't be forwarded through the server (it refuses to), so when
+        // Secret Chat Tools are enabled we re-upload the local copies instead of a forward reference.
+        if (TalogramSettings.isSecretChatTools() && fmessages.size() > 0 && allMessagesAreSecretChat(fmessages) && !dids.isEmpty()) {
+            for (int a = 0; a < dids.size(); a++) {
+                long dialogId = dids.get(a).dialogId;
+                forwardSecretChatMessagesByLocalCopy(fmessages, dialogId, message, notify, scheduleDate, scheduleRepeatPeriod);
+            }
+            if (forwardingMessage != null) {
+                forwardingMessage = null;
+                forwardingMessageGroup = null;
+            } else {
+                for (int a = 1; a >= 0; a--) {
+                    selectedMessagesCanCopyIds[a].clear();
+                    selectedMessagesCanStarIds[a].clear();
+                    selectedMessagesIds[a].clear();
+                }
+                hideActionMode();
+                updatePinnedMessageView(true);
+                updateVisibleRows();
+            }
+            createUndoView();
+            return true;
+        }
+
         for (int j = 0; j < dids.size(); j++) {
             TLRPC.Chat chat = getMessagesController().getChat(-dids.get(j).dialogId);
             if (chat != null) {

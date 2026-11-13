@@ -965,8 +965,12 @@ public class SecretMediaViewer implements NotificationCenter.NotificationCenterD
                 WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR |
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
                 WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS;
-        windowLayoutParams.flags |= WindowManager.LayoutParams.FLAG_SECURE;
-        AndroidUtilities.logFlagSecure();
+        // Joker Mod: the fullscreen capture protection is re-evaluated for each message in
+        // openMedia(): lifted for non-view-once secret media when Secret Chat Tools are on.
+        if (!org.telegram.messenger.TalogramSettings.isSecretChatTools()) {
+            windowLayoutParams.flags |= WindowManager.LayoutParams.FLAG_SECURE;
+            AndroidUtilities.logFlagSecure();
+        }
         centerImage.setParentView(containerView);
         centerImage.setForceCrossfade(true);
 
@@ -1370,6 +1374,26 @@ public class SecretMediaViewer implements NotificationCenter.NotificationCenterD
     private Runnable onClose;
     private boolean ignoreDelete;
 
+    private void updateSecretSecureFlag(MessageObject messageObject) {
+        // Joker Mod: Secret Chat Tools lift the capture protection for non-view-once secret media.
+        // View-once media keeps it, and so does everything when the toggle is off.
+        boolean isViewOnce = messageObject != null && messageObject.messageOwner != null
+                && messageObject.messageOwner.media != null
+                && messageObject.messageOwner.media.ttl_seconds == 0x7FFFFFFF;
+        boolean secure = isViewOnce || !org.telegram.messenger.TalogramSettings.isSecretChatTools();
+        if (windowLayoutParams == null) {
+            return;
+        }
+        boolean currentlySecure = (windowLayoutParams.flags & WindowManager.LayoutParams.FLAG_SECURE) != 0;
+        if (secure && !currentlySecure) {
+            windowLayoutParams.flags |= WindowManager.LayoutParams.FLAG_SECURE;
+            AndroidUtilities.logFlagSecure();
+        } else if (!secure && currentlySecure) {
+            windowLayoutParams.flags &= ~WindowManager.LayoutParams.FLAG_SECURE;
+            AndroidUtilities.logFlagSecure();
+        }
+    }
+
     public void openMedia(MessageObject messageObject, PhotoViewer.PhotoViewerProvider provider, Runnable onOpen, Runnable onClose) {
         if (parentActivity == null || messageObject == null || !messageObject.needDrawBluredPreview() || provider == null) {
             return;
@@ -1481,6 +1505,7 @@ public class SecretMediaViewer implements NotificationCenter.NotificationCenterD
         NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.didCreatedNewDeleteTask);
         currentDialogId = MessageObject.getPeerId(messageObject.messageOwner.peer_id);
         currentMessageObject = messageObject;
+        updateSecretSecureFlag(messageObject);
         TLRPC.Document document = messageObject.getDocument();
         if (currentThumb != null) {
             currentThumb.release();

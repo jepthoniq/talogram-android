@@ -1263,6 +1263,10 @@
     <string name="JokerKeepDeletedMessagesTitle">الاحتفاظ بالرسائل المحذوفة</string>
     <string name="JokerKeepDeletedMessagesText">الاحتفاظ بالرسائل المحذوفة محليًا مع علامة × بجانب الفقاعة. مسح المحادثة يحذف كل شيء نهائيًا.</string>
     <string name="JokerFreezeStoryViewsTitle">تجميد مشاهدة الستوريات</string>
+    <string name="JokerVoiceToTextTitle">تحويل الصوت إلى نص</string>
+    <string name="JokerVoiceToTextText">فتح ميزة تحويل الرسائل الصوتية إلى نص للجميع. قد تظل حدود التجربة من السيرفر سارية.</string>
+    <string name="JokerSecretChatToolsTitle">أدوات المحادثات السرية</string>
+    <string name="JokerSecretChatToolsText">حفظ الصور والفيديوهات والملفات من المحادثات السرية وإرسالها بنسخة محلية بدون خادم، وإخفاء رسالة «تم التقاط السكرين» عن الطرف الآخر — كل شيء محلي على جهازك.</string>
     <string name="JokerFreezeStoryViewsText">شاهد ستوريات الآخرين دون الظهور في قائمة مشاهديهم. يعمل بالكامل على جهازك - بدون اشتراك وبدون تيليجرام بزنس.</string>
     <string name="JokerLocalFeaturesHeader">الميزات المحلية</string>
     <string name="JokerQuickRepliesTitle">الردود السريعة المحلية</string>

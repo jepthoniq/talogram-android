@@ -239,7 +239,10 @@ public class SecretVoicePlayer extends Dialog {
             WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR |
             WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS |
             WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION;
-        if (!BuildVars.DEBUG_PRIVATE_VERSION) {
+        // Joker Mod: view-once voice notes stay protected; regular secret voice notes get
+        // capture protection lifted while Secret Chat Tools are enabled.
+        boolean isViewOnceVoice = messageObject != null && (messageObject.isVoiceOnce() || messageObject.isRoundOnce());
+        if (isViewOnceVoice || !org.telegram.messenger.TalogramSettings.isSecretChatTools()) {
             params.flags |= WindowManager.LayoutParams.FLAG_SECURE;
             AndroidUtilities.logFlagSecure();
         }

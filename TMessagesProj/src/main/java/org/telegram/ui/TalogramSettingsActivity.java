@@ -51,12 +51,14 @@ public class TalogramSettingsActivity extends BaseFragment {
     private static final int ROW_BYPASS_COPY = 6;
     private static final int ROW_KEEP_DELETED = 7;
     private static final int ROW_STORY_FREEZE = 8;
-    private static final int ROW_LOCAL_HEADER = 9;
-    private static final int ROW_QUICK_REPLIES = 10;
-    private static final int ROW_DEBUG_LOG = 11;
-    private static final int ROW_CREDITS_HEADER = 12;
-    private static final int ROW_CREDITS = 13;
-    private static final int ROW_COUNT = 14;
+    private static final int ROW_VOICE_TO_TEXT = 9;
+    private static final int ROW_SECRET_CHAT_TOOLS = 10;
+    private static final int ROW_LOCAL_HEADER = 11;
+    private static final int ROW_QUICK_REPLIES = 12;
+    private static final int ROW_DEBUG_LOG = 13;
+    private static final int ROW_CREDITS_HEADER = 14;
+    private static final int ROW_CREDITS = 15;
+    private static final int ROW_COUNT = 16;
 
     private RecyclerListView listView;
     private ListAdapter adapter;
@@ -102,7 +104,7 @@ public class TalogramSettingsActivity extends BaseFragment {
         root.removeAllViews();
         if (TalogramSubscription.isGateEnabled() && !TalogramSubscription.isSubscribedCached()) {
             // لا تُفتح القائمة إطلاقاً قبل الاشتراك في القناة: تظهر شاشة الاشتراك فقط.
-            root.addView(createGateLayout(context, root));
+            root.addView(createGateLayout(context));
             TalogramSubscription.checkSubscription(getCurrentAccount(), subscribed -> {
                 if (subscribed) {
                     AndroidUtilities.runOnUIThread(() -> refreshContent(context));
@@ -125,7 +127,7 @@ public class TalogramSettingsActivity extends BaseFragment {
         ));
     }
 
-    private LinearLayout createGateLayout(Context context, FrameLayout root) {
+    private LinearLayout createGateLayout(Context context) {
         LinearLayout layout = new LinearLayout(context);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setGravity(Gravity.CENTER);
@@ -231,11 +233,18 @@ public class TalogramSettingsActivity extends BaseFragment {
             case ROW_STORY_FREEZE:
                 key = TalogramSettings.KEY_STORY_FREEZE;
                 break;
+            case ROW_VOICE_TO_TEXT:
+                key = TalogramSettings.KEY_VOICE_TO_TEXT;
+                break;
+            case ROW_SECRET_CHAT_TOOLS:
+                key = TalogramSettings.KEY_SECRET_CHAT_TOOLS;
+                break;
             default:
                 break;
         }
         if (key != null) {
-            TalogramSettings.setBoolean(key, !TalogramSettings.getBoolean(key));
+            boolean defaultValue = key != null && (key.equals(TalogramSettings.KEY_VOICE_TO_TEXT) || key.equals(TalogramSettings.KEY_SECRET_CHAT_TOOLS));
+            TalogramSettings.setBoolean(key, !TalogramSettings.getBoolean(key, defaultValue));
             adapter.notifyItemChanged(position);
             return;
         }
@@ -263,7 +272,7 @@ public class TalogramSettingsActivity extends BaseFragment {
         @Override
         public boolean isEnabled(RecyclerView.ViewHolder holder) {
             int position = holder.getAdapterPosition();
-            if (position >= ROW_FEATURES_HEADER && position <= ROW_STORY_FREEZE) {
+            if (position >= ROW_FEATURES_HEADER && position <= ROW_SECRET_CHAT_TOOLS) {
                 return position != ROW_FEATURES_HEADER;
             }
             return position == ROW_QUICK_REPLIES || position == ROW_DEBUG_LOG;
@@ -334,6 +343,12 @@ public class TalogramSettingsActivity extends BaseFragment {
                         break;
                     case ROW_STORY_FREEZE:
                         cell.setTextAndValueAndCheck(LocaleController.getString(R.string.JokerFreezeStoryViewsTitle), LocaleController.getString(R.string.JokerFreezeStoryViewsText), TalogramSettings.getBoolean(TalogramSettings.KEY_STORY_FREEZE), true, true);
+                        break;
+                    case ROW_VOICE_TO_TEXT:
+                        cell.setTextAndValueAndCheck(LocaleController.getString(R.string.JokerVoiceToTextTitle), LocaleController.getString(R.string.JokerVoiceToTextText), TalogramSettings.getBoolean(TalogramSettings.KEY_VOICE_TO_TEXT, true), true, true);
+                        break;
+                    case ROW_SECRET_CHAT_TOOLS:
+                        cell.setTextAndValueAndCheck(LocaleController.getString(R.string.JokerSecretChatToolsTitle), LocaleController.getString(R.string.JokerSecretChatToolsText), TalogramSettings.getBoolean(TalogramSettings.KEY_SECRET_CHAT_TOOLS, true), true, true);
                         break;
                 }
             } else if (holder.getItemViewType() == TYPE_VALUE) {

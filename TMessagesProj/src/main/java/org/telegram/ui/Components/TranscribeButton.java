@@ -822,6 +822,10 @@ public class TranscribeButton {
         if (messageObject == null || messageObject.messageOwner == null) {
             return false;
         }
+        // Joker Mod: transcription is open for everyone while the mod toggle is on.
+        if (org.telegram.messenger.TalogramSettings.isVoiceToText()) {
+            return true;
+        }
         ConnectionsManager cc = ConnectionsManager.getInstance(messageObject.currentAccount);
         MessagesController mc = MessagesController.getInstance(messageObject.currentAccount);
         if (isFreeTranscribeInChat(messageObject)) {
@@ -854,6 +858,10 @@ public class TranscribeButton {
     }
 
     public static boolean showTranscribeLock(MessageObject messageObject) {
+        // Joker Mod: the subscription replaces the paywall lock entirely.
+        if (org.telegram.messenger.TalogramSettings.isVoiceToText()) {
+            return false;
+        }
         if (messageObject == null || messageObject.messageOwner == null) {
             return false;
         }

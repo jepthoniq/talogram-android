@@ -1897,7 +1897,10 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         }
         if (send) {
             if (lastSecretChat != null) {
-                SecretChatHelper.getInstance(lastChatAccount).sendScreenshotMessage(lastSecretChat, lastChatVisibleMessages, null);
+                // Joker Mod: never send the "you took a screenshot" message in secret chats.
+                if (!TalogramSettings.isSecretChatTools()) {
+                    SecretChatHelper.getInstance(lastChatAccount).sendScreenshotMessage(lastSecretChat, lastChatVisibleMessages, null);
+                }
             } else {
                 SendMessagesHelper.getInstance(lastChatAccount).sendScreenshotMessage(lastUser, lastMessageId, null);
             }
