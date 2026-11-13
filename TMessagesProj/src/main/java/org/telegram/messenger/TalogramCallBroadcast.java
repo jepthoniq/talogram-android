@@ -217,8 +217,7 @@ public final class TalogramCallBroadcast {
                     return;
                 }
                 VoIPService service = VoIPService.getSharedInstance();
-                if (service != null && service.isJoined()) {
-                    service.startVideoBroadcast();
+                if (service != null && service.isJoined() && service.startVideoBroadcast()) {
                     return;
                 }
                 if (++attempts < 100) {

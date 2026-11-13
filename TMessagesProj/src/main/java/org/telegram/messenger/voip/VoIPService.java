@@ -1418,9 +1418,9 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 	// audio is mixed into the mic by TalogramCallBroadcast; here we only swap
 	// the capturer. The capture device is recreated so VideoCapturerDevice sees
 	// TalogramCallBroadcast.isVideoBroadcasting() and selects the file capturer.
-	public void startVideoBroadcast() {
+	public boolean startVideoBroadcast() {
 		if (TalogramCallBroadcast.getVideoBroadcastPath() == null || currentState == STATE_ENDED || currentState == STATE_HANGING_UP) {
-			return;
+			return false;
 		}
 		talogramVideoBroadcastActive = true;
 		if (captureDevice[CAPTURE_DEVICE_CAMERA] != 0) {
@@ -1431,8 +1431,12 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 			captureDevice[CAPTURE_DEVICE_CAMERA] = 0;
 		}
 		createCaptureDevice(false);
+		if (captureDevice[CAPTURE_DEVICE_CAMERA] == 0) {
+			return false;
+		}
 		requestVideoCall(false);
 		setVideoState(false, Instance.VIDEO_STATE_ACTIVE);
+		return true;
 	}
 
 	public void stopVideoBroadcast() {
