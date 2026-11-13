@@ -674,7 +674,14 @@ public class TranscribeButton {
         long dialogId = messageObject.getDialogId();
         int messageId = messageObject.messageOwner.id;
         if (open) {
-            if (messageObject.messageOwner.voiceTranscription != null && messageObject.messageOwner.voiceTranscriptionFinal) {
+            // Joker Mod: a stored empty final transcript means the previous
+            // attempt failed (server paywall or a decode error). With the local
+            // Arabic model available, retry locally instead of reopening the
+            // empty transcript forever.
+            boolean failedEmpty = org.telegram.messenger.TalogramSettings.isVoiceToText()
+                    && org.telegram.messenger.TalogramVoiceTranscriber.isSupported()
+                    && TextUtils.isEmpty(messageObject.messageOwner.voiceTranscription);
+            if (messageObject.messageOwner.voiceTranscription != null && messageObject.messageOwner.voiceTranscriptionFinal && !failedEmpty) {
                 TranscribeButton.openVideoTranscription(messageObject);
                 messageObject.messageOwner.voiceTranscriptionOpen = true;
                 MessagesStorage.getInstance(account).updateMessageVoiceTranscriptionOpen(dialogId, messageId, messageObject.messageOwner);
