@@ -113,6 +113,8 @@ public class TalogramFileVideoCapturer implements VideoCapturer {
             if (format.containsKey(MediaFormat.KEY_ROTATION)) {
                 rotation = format.getInteger(MediaFormat.KEY_ROTATION);
             }
+            int outputWidth = format.containsKey(MediaFormat.KEY_WIDTH) ? format.getInteger(MediaFormat.KEY_WIDTH) : 0;
+            int outputHeight = format.containsKey(MediaFormat.KEY_HEIGHT) ? format.getInteger(MediaFormat.KEY_HEIGHT) : 0;
             String mime = format.getString(MediaFormat.KEY_MIME);
             extractor.selectTrack(trackIndex);
             codec = MediaCodec.createDecoderByType(mime);
@@ -151,6 +153,12 @@ public class TalogramFileVideoCapturer implements VideoCapturer {
                     if (outputFormat.containsKey(MediaFormat.KEY_COLOR_FORMAT)) {
                         colorFormat = outputFormat.getInteger(MediaFormat.KEY_COLOR_FORMAT);
                     }
+                    if (outputFormat.containsKey(MediaFormat.KEY_WIDTH)) {
+                        outputWidth = outputFormat.getInteger(MediaFormat.KEY_WIDTH);
+                    }
+                    if (outputFormat.containsKey(MediaFormat.KEY_HEIGHT)) {
+                        outputHeight = outputFormat.getInteger(MediaFormat.KEY_HEIGHT);
+                    }
                 } else if (outputIndex >= 0) {
                     if (info.size > 0 && (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) == 0) {
                         long ptsUs = info.presentationTimeUs;
@@ -185,7 +193,7 @@ public class TalogramFileVideoCapturer implements VideoCapturer {
                                     outputBuffer.limit(info.offset + info.size);
                                     byte[] raw = new byte[info.size];
                                     outputBuffer.get(raw);
-                                    pushRaw(raw, colorFormat, rotation);
+                                    pushRaw(raw, colorFormat, rotation, outputWidth, outputHeight);
                                 }
                             }
                             lastSentPtsUs = ptsUs;
@@ -253,18 +261,49 @@ public class TalogramFileVideoCapturer implements VideoCapturer {
         pushBuffer(buffer, rotation);
     }
 
-    private void pushRaw(byte[] raw, int colorFormat, int rotation) {
-        // We don't know the decoded size here; it is read from the decoder's
-        // output format on the first frame via the Image path in practice.
-        // Keeping a conservative fallback avoids dropping the whole broadcast
-        // on decoders without getOutputImage support.
-        if (colorFormat == COLOR_FormatYUV420SemiPlanar && raw.length >= 6) {
-            // Dimensions cannot be derived from the buffer alone; rely on the
-            // Image path. Do nothing rather than guessing wrong.
+    private void pushRaw(byte[] raw, int colorFormat, int rotation, int width, int height) {
+        width &= ~1;
+        height &= ~1;
+        if (width <= 0 || height <= 0) {
             return;
         }
-        if (colorFormat == COLOR_FormatYUV420Planar) {
+        int ySize = width * height;
+        int chromaWidth = width / 2;
+        int chromaSize = chromaWidth * (height / 2);
+        if (raw.length < ySize + chromaSize * 2) {
             return;
+        }
+        JavaI420Buffer buffer = JavaI420Buffer.allocate(width, height);
+        copyY(raw, 0, width, buffer.getDataY(), buffer.getStrideY(), width, height);
+        if (colorFormat == COLOR_FormatYUV420SemiPlanar) {
+            // NV12: interleaved UV after the Y plane. NV21 has V first; Android
+            // decoders normally output NV12 with the COLOR_FormatYUV420SemiPlanar.
+            int uvOffset = ySize;
+            ByteBuffer u = buffer.getDataU();
+            ByteBuffer v = buffer.getDataV();
+            for (int row = 0; row < height / 2; row++) {
+                int srcRow = uvOffset + row * width;
+                int dstRow = row * buffer.getStrideU();
+                for (int col = 0; col < chromaWidth; col++) {
+                    u.put(dstRow + col, raw[srcRow + col * 2]);
+                    v.put(dstRow + col, raw[srcRow + col * 2 + 1]);
+                }
+            }
+        } else {
+            // I420 planar: full Y plane, then U, then V.
+            copyY(raw, ySize, chromaWidth, buffer.getDataU(), buffer.getStrideU(), chromaWidth, height / 2);
+            copyY(raw, ySize + chromaSize, chromaWidth, buffer.getDataV(), buffer.getStrideV(), chromaWidth, height / 2);
+        }
+        pushBuffer(buffer, rotation);
+    }
+
+    private static void copyY(byte[] src, int srcOffset, int srcStride, ByteBuffer dst, int dstStride, int width, int height) {
+        for (int row = 0; row < height; row++) {
+            int srcRow = srcOffset + row * srcStride;
+            int dstRow = row * dstStride;
+            for (int col = 0; col < width; col++) {
+                dst.put(dstRow + col, src[srcRow + col]);
+            }
         }
     }
 
