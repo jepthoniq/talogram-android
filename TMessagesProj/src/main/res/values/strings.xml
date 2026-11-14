@@ -11763,9 +11763,15 @@
     <string name="JokerCallBroadcastPlay">Play in Voice Chat</string>
     <string name="JokerCallBroadcastStop">Stop Broadcasting</string>
     <string name="JokerCallBroadcastDownloadFirst">Download the media first, then tap again</string>
+    <string name="JokerCallBroadcastDownloading">Downloading the file to start broadcasting…</string>
     <string name="JokerCallBroadcastFailed">Couldn\'t decode audio in this media</string>
     <string name="JokerCallBroadcastStarted">Broadcast started</string>
     <string name="JokerVoiceModelDownloading">Downloading the Arabic speech recognition model (~100 MB)…</string>
     <string name="JokerVoiceModelDownloadFailed">Couldn\'t download the speech recognition model. Try again.</string>
+    <string name="JokerVoiceModelReady">Speech model downloaded, transcribing…</string>
+    <string name="JokerVoiceModelDownloadProgress">Downloading speech recognition model: %1$d%%</string>
+    <string name="JokerVoiceModelNotificationTitle">Arabic speech recognition model</string>
+    <string name="JokerVoiceModelNotificationChannel">Speech model downloads</string>
     <string name="JokerVoiceTranscriptionFailed">Couldn\'t transcribe this voice message on the device. Try again.</string>
+    <string name="JokerVoiceTranscriptionTimeout">Transcription took too long. Try again.</string>
 </resources>

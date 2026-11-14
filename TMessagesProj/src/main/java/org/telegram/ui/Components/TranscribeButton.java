@@ -662,7 +662,10 @@ public class TranscribeButton {
     public static boolean isTranscribing(MessageObject messageObject) {
         return (
             (transcribeOperationsByDialogPosition != null && (transcribeOperationsByDialogPosition.containsValue(messageObject) || transcribeOperationsByDialogPosition.containsKey((Integer) reqInfoHash(messageObject)))) ||
-            (transcribeOperationsById != null && messageObject != null && messageObject.messageOwner != null && transcribeOperationsById.containsKey(messageObject.messageOwner.voiceTranscriptionId))
+            // Joker Mod: id 0 is the "no transcription yet" default; a pending
+            // server operation with id 0 must not mark every voice message in
+            // the chat as loading forever.
+            (transcribeOperationsById != null && messageObject != null && messageObject.messageOwner != null && messageObject.messageOwner.voiceTranscriptionId != 0 && transcribeOperationsById.containsKey(messageObject.messageOwner.voiceTranscriptionId))
         );
     }
 
@@ -717,9 +720,7 @@ public class TranscribeButton {
             transcribeOperationsByDialogPosition = new HashMap<>();
         }
         transcribeOperationsByDialogPosition.put((Integer) reqInfoHash(messageObject), messageObject);
-        if (BuildVars.LOGS_ENABLED) {
-            FileLog.d("starting local transcription, msg_id=" + messageId);
-        }
+        FileLog.e("TalogramVoiceTranscriber: starting local transcription, msg_id=" + messageId);
         org.telegram.messenger.TalogramVoiceTranscriber.transcribe(messageObject, new org.telegram.messenger.TalogramVoiceTranscriber.Callback() {
             @Override
             public void onSuccess(final String text) {
@@ -765,6 +766,40 @@ public class TranscribeButton {
                 });
             }
         });
+        // Joker Mod: Vosk/MediaCodec can hang on a broken media file or a bad
+        // model load. Never leave the A button spinning forever: once the model
+        // is ready, a transcription that takes over four minutes is aborted.
+        AndroidUtilities.runOnUIThread(new Runnable() {
+            private long readySince;
+            private int checks;
+
+            @Override
+            public void run() {
+                if (transcribeOperationsByDialogPosition == null
+                        || !transcribeOperationsByDialogPosition.containsKey((Integer) reqInfoHash(messageObject))) {
+                    return;
+                }
+                long now = SystemClock.elapsedRealtime();
+                if (org.telegram.messenger.TalogramVoiceTranscriber.isModelReady()) {
+                    if (readySince == 0) {
+                        readySince = now;
+                    }
+                    if (now - readySince >= 4 * 60 * 1000L) {
+                        transcribeOperationsByDialogPosition.remove((Integer) reqInfoHash(messageObject));
+                        FileLog.e("TalogramVoiceTranscriber: local transcription watchdog timeout, msg_id=" + messageId);
+                        try {
+                            android.widget.Toast.makeText(org.telegram.messenger.ApplicationLoader.applicationContext, org.telegram.messenger.R.string.JokerVoiceTranscriptionTimeout, android.widget.Toast.LENGTH_LONG).show();
+                        } catch (Exception ignore) {
+                        }
+                        NotificationCenter.getInstance(account).postNotificationName(NotificationCenter.voiceTranscriptionUpdate, messageObject);
+                        return;
+                    }
+                }
+                if (++checks < 60) {
+                    AndroidUtilities.runOnUIThread(this, 30000);
+                }
+            }
+        }, 30000);
     }
 
     private static void requestServerTranscription(final MessageObject messageObject, final ChatMessageCell.ChatMessageCellDelegate delegate) {

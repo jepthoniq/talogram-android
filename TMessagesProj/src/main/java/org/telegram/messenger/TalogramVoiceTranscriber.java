@@ -10,13 +10,19 @@
 
 package org.telegram.messenger;
 
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.content.Context;
 import android.media.MediaCodec;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
 import android.os.Build;
 import android.os.Process;
+import android.os.SystemClock;
 import android.text.TextUtils;
 import android.widget.Toast;
+
+import androidx.core.app.NotificationCompat;
 
 import org.json.JSONObject;
 import org.telegram.tgnet.TLRPC;
@@ -52,10 +58,14 @@ public final class TalogramVoiceTranscriber {
     private static final String MODEL_DIR = "vosk-model-small-ar-0.3";
     private static final int TARGET_SAMPLE_RATE = 16000;
     private static final int FEED_CHUNK_BYTES = 6400;
+    private static final String NOTIFICATION_CHANNEL_ID = "talogram_voice_model";
+    private static final int NOTIFICATION_ID = 0x7a01;
 
     private static final Object MODEL_LOCK = new Object();
     private static volatile Model model;
     private static volatile boolean downloading;
+    private static volatile int lastToastPercent = -100;
+    private static Toast progressToast;
 
     private TalogramVoiceTranscriber() {
     }
@@ -65,7 +75,17 @@ public final class TalogramVoiceTranscriber {
     public static boolean isSupported() {
         try {
             Locale locale = LocaleController.getInstance().getCurrentLocale();
-            return locale != null && "ar".equals(locale.getLanguage());
+            if (locale != null && "ar".equals(locale.getLanguage())) {
+                return true;
+            }
+            LocaleController.LocaleInfo info = LocaleController.getInstance().getCurrentLocaleInfo();
+            if (info != null && info.shortName != null && info.shortName.startsWith("ar")) {
+                return true;
+            }
+            // The app can be translated with a remote pack while the phone
+            // itself is Arabic; the voice notes are still Arabic there.
+            Locale system = Locale.getDefault();
+            return system != null && "ar".equals(system.getLanguage());
         } catch (Exception ignore) {
             return false;
         }
@@ -84,9 +104,11 @@ public final class TalogramVoiceTranscriber {
         final int account = messageObject.currentAccount;
         final TLRPC.Document document = MessageObject.getDocument(messageObject.messageOwner);
         final String attachFileName = document != null ? FileLoader.getAttachFileName(document) : null;
+        FileLog.e(TAG + ": transcribe start, msg=" + messageObject.getId() + " doc=" + (document != null) + " modelReady=" + isModelReady());
         new Thread(() -> {
             Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);
             String text = null;
+            String failure = null;
             try {
                 if (document == null || attachFileName == null) {
                     throw new IOException("no document");
@@ -95,19 +117,24 @@ public final class TalogramVoiceTranscriber {
                 if (file == null || !file.exists()) {
                     throw new IOException("voice file is not available");
                 }
+                FileLog.e(TAG + ": audio file=" + file.getAbsolutePath() + " size=" + file.length());
                 Model localModel = getModel();
                 if (localModel == null) {
                     throw new IOException("model is not available");
                 }
                 text = recognize(localModel, file);
+                FileLog.e(TAG + ": recognition finished, text length=" + (text == null ? -1 : text.length()));
             } catch (Throwable e) {
+                failure = e.toString();
                 FileLog.e(TAG + ": local transcription failed", e);
             }
             final String result = text != null ? text.trim() : null;
+            final String failureReason = failure;
             AndroidUtilities.runOnUIThread(() -> {
                 if (!TextUtils.isEmpty(result)) {
                     callback.onSuccess(result);
                 } else {
+                    FileLog.e(TAG + ": local transcription failure reported, reason=" + failureReason);
                     callback.onFailure();
                 }
             });
@@ -121,25 +148,32 @@ public final class TalogramVoiceTranscriber {
             return file;
         }
         if (!ApplicationLoader.isNetworkOnline()) {
+            FileLog.e(TAG + ": audio is not downloaded and the network is offline");
             return null;
         }
         int cacheType = (MessageObject.isVoiceDocument(document) || MessageObject.isRoundVideoDocument(document)) && messageObject.shouldEncryptPhotoOrVideo() ? 2 : 0;
         loader.loadFile(document, messageObject, FileLoader.PRIORITY_NORMAL, cacheType);
+        FileLog.e(TAG + ": waiting for the audio download");
         // Voice messages are small and already auto-downloaded in most cases.
         // Give a manual download a reasonable window without blocking the
         // transcription request forever.
-        for (int i = 0; i < 600; i++) {
+        for (int i = 0; i < 120; i++) {
             Thread.sleep(250);
             file = loader.getPathToAttach(document, true);
             if (file != null && file.exists()) {
+                FileLog.e(TAG + ": audio downloaded after " + (i + 1) * 250 + " ms");
                 return file;
             }
             if (!loader.isLoadingFile(attachFileName)) {
                 Thread.sleep(500);
                 file = loader.getPathToAttach(document, true);
+                if (file == null || !file.exists()) {
+                    FileLog.e(TAG + ": audio download stopped without a file");
+                }
                 return file != null && file.exists() ? file : null;
             }
         }
+        FileLog.e(TAG + ": audio download timed out");
         return null;
     }
 
@@ -153,12 +187,18 @@ public final class TalogramVoiceTranscriber {
             if (result != null) {
                 return result;
             }
-            if (!isModelReady() && !downloadModel()) {
-                return null;
+            if (!isModelReady()) {
+                FileLog.e(TAG + ": Vosk model is missing, downloading " + MODEL_URL);
+                if (!downloadModel()) {
+                    return null;
+                }
             }
             try {
+                FileLog.e(TAG + ": loading the Vosk model");
+                long started = SystemClock.elapsedRealtime();
                 result = new Model(getModelDir().getAbsolutePath());
                 model = result;
+                FileLog.e(TAG + ": Vosk model loaded in " + (SystemClock.elapsedRealtime() - started) + " ms");
             } catch (Throwable e) {
                 FileLog.e(TAG + ": can't load Vosk model", e);
                 // A broken model directory should be downloaded again next time.
@@ -182,6 +222,7 @@ public final class TalogramVoiceTranscriber {
         File zipFile = new File(ApplicationLoader.applicationContext.getFilesDir(), MODEL_DIR + ".zip.part");
         File tmpDir = new File(ApplicationLoader.applicationContext.getFilesDir(), MODEL_DIR + ".tmp");
         boolean success = false;
+        boolean downloaded = false;
         try {
             File filesDir = ApplicationLoader.applicationContext.getFilesDir();
             if (filesDir.getUsableSpace() < 350L * 1024 * 1024) {
@@ -190,7 +231,11 @@ public final class TalogramVoiceTranscriber {
                 return false;
             }
             toast(R.string.JokerVoiceModelDownloading);
+            reportDownloadProgress(0);
             downloadFile(MODEL_URL, zipFile);
+            downloaded = true;
+            FileLog.e(TAG + ": model archive downloaded (" + zipFile.length() + " bytes), extracting");
+            reportDownloadProgress(100);
             deleteRecursive(tmpDir);
             if (!tmpDir.mkdirs() && !tmpDir.isDirectory()) {
                 throw new IOException("can't create model directory");
@@ -204,15 +249,24 @@ public final class TalogramVoiceTranscriber {
             success = isModelReady();
             if (!success) {
                 deleteRecursive(getModelDir());
+            } else {
+                toast(R.string.JokerVoiceModelReady);
             }
+            FileLog.e(TAG + ": model extraction finished, ready=" + success);
         } catch (Throwable e) {
             FileLog.e(TAG + ": model download failed", e);
             deleteRecursive(tmpDir);
             deleteRecursive(getModelDir());
             toast(R.string.JokerVoiceModelDownloadFailed);
         } finally {
-            zipFile.delete();
+            // Keep an incomplete archive so the next attempt resumes instead of
+            // downloading 100 MB again. A complete but corrupt archive is
+            // deleted so it is fetched from scratch.
+            if (success || downloaded) {
+                zipFile.delete();
+            }
             downloading = false;
+            cancelDownloadNotification();
         }
         return success;
     }
@@ -220,18 +274,32 @@ public final class TalogramVoiceTranscriber {
     private static void downloadFile(String urlString, File target) throws IOException {
         long existing = target.exists() ? target.length() : 0;
         HttpURLConnection connection = null;
-        long expectedLength = -1;
         try {
             connection = (HttpURLConnection) new URL(urlString).openConnection();
             connection.setConnectTimeout(30000);
-            connection.setReadTimeout(60000);
+            connection.setReadTimeout(120000);
             connection.setInstanceFollowRedirects(true);
             connection.setRequestProperty("User-Agent", "Talogram");
             connection.setRequestProperty("Accept", "*/*");
+            connection.setRequestProperty("Accept-Encoding", "identity");
             if (existing > 0) {
                 connection.setRequestProperty("Range", "bytes=" + existing + "-");
             }
             int code = connection.getResponseCode();
+            if (code == 413 || code == 416) {
+                // The partial file does not match the remote one; restart.
+                target.delete();
+                existing = 0;
+                connection.disconnect();
+                connection = (HttpURLConnection) new URL(urlString).openConnection();
+                connection.setConnectTimeout(30000);
+                connection.setReadTimeout(120000);
+                connection.setInstanceFollowRedirects(true);
+                connection.setRequestProperty("User-Agent", "Talogram");
+                connection.setRequestProperty("Accept", "*/*");
+                connection.setRequestProperty("Accept-Encoding", "identity");
+                code = connection.getResponseCode();
+            }
             if (code != HttpURLConnection.HTTP_OK && code != HttpURLConnection.HTTP_PARTIAL) {
                 throw new IOException("HTTP " + code);
             }
@@ -239,26 +307,38 @@ public final class TalogramVoiceTranscriber {
             if (!append) {
                 existing = 0;
             }
+            long total = -1;
             int contentLength = connection.getContentLength();
             if (contentLength > 0) {
-                expectedLength = existing + contentLength;
+                total = existing + contentLength;
             }
+            FileLog.e(TAG + ": download started at " + existing + " bytes of " + total);
+            long written = existing;
+            int lastPercent = -1;
             try (InputStream input = new BufferedInputStream(connection.getInputStream());
                  FileOutputStream output = new FileOutputStream(target, append)) {
                 byte[] buffer = new byte[64 * 1024];
                 int read;
                 while ((read = input.read(buffer)) != -1) {
                     output.write(buffer, 0, read);
+                    written += read;
+                    if (total > 0) {
+                        int percent = (int) Math.min(99, written * 100 / total);
+                        if (percent >= lastPercent + 2) {
+                            lastPercent = percent;
+                            reportDownloadProgress(percent);
+                        }
+                    }
                 }
                 output.flush();
+            }
+            if (total > 0 && target.length() != total) {
+                throw new IOException("incomplete download: " + target.length() + " of " + total);
             }
         } finally {
             if (connection != null) {
                 connection.disconnect();
             }
-        }
-        if (expectedLength > 0 && target.length() != expectedLength) {
-            throw new IOException("incomplete download");
         }
     }
 
@@ -333,6 +413,7 @@ public final class TalogramVoiceTranscriber {
             codec = MediaCodec.createDecoderByType(mime);
             codec.configure(format, null, null, 0);
             codec.start();
+            FileLog.e(TAG + ": decoding " + mime + " " + sampleRate + "Hz " + channels + "ch");
 
             MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
             LinearResampler resampler = new LinearResampler(sampleRate, TARGET_SAMPLE_RATE);
@@ -510,6 +591,77 @@ public final class TalogramVoiceTranscriber {
             try {
                 Toast.makeText(ApplicationLoader.applicationContext, resId, Toast.LENGTH_LONG).show();
             } catch (Exception ignore) {
+            }
+        });
+    }
+
+    // The download of the model is large, so it must be visible: a toast every
+    // 25% and an ongoing notification with the exact progress. Otherwise the A
+    // button looks stuck for several minutes on a slow connection.
+    private static void reportDownloadProgress(final int percent) {
+        final boolean newToastStep = percent >= 100 || lastToastPercent / 25 != percent / 25;
+        if (newToastStep) {
+            lastToastPercent = percent;
+            AndroidUtilities.runOnUIThread(() -> {
+                try {
+                    if (progressToast == null) {
+                        progressToast = Toast.makeText(ApplicationLoader.applicationContext, "", Toast.LENGTH_SHORT);
+                    }
+                    progressToast.setText(LocaleController.formatString("JokerVoiceModelDownloadProgress", R.string.JokerVoiceModelDownloadProgress, percent));
+                    progressToast.show();
+                } catch (Exception ignore) {
+                }
+            });
+        }
+        AndroidUtilities.runOnUIThread(() -> {
+            try {
+                showDownloadNotification(percent);
+            } catch (Throwable e) {
+                FileLog.e(TAG + ": progress notification failed", e);
+            }
+        });
+    }
+
+    private static void showDownloadNotification(int percent) {
+        final Context context = ApplicationLoader.applicationContext;
+        if (context == null) {
+            return;
+        }
+        NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager == null) {
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= 26) {
+            NotificationChannel channel = new NotificationChannel(
+                    NOTIFICATION_CHANNEL_ID,
+                    LocaleController.getString(R.string.JokerVoiceModelNotificationChannel),
+                    NotificationManager.IMPORTANCE_LOW);
+            channel.setShowBadge(false);
+            channel.setSound(null, null);
+            manager.createNotificationChannel(channel);
+        }
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID);
+        builder.setSmallIcon(R.drawable.notification);
+        builder.setContentTitle(LocaleController.getString(R.string.JokerVoiceModelNotificationTitle));
+        builder.setContentText(LocaleController.formatString("JokerVoiceModelDownloadProgress", R.string.JokerVoiceModelDownloadProgress, percent));
+        builder.setProgress(100, percent, false);
+        builder.setOngoing(true);
+        builder.setOnlyAlertOnce(true);
+        builder.setPriority(NotificationCompat.PRIORITY_LOW);
+        manager.notify(NOTIFICATION_ID, builder.build());
+    }
+
+    private static void cancelDownloadNotification() {
+        AndroidUtilities.runOnUIThread(() -> {
+            try {
+                if (progressToast != null) {
+                    progressToast.cancel();
+                }
+                NotificationManager manager = (NotificationManager) ApplicationLoader.applicationContext.getSystemService(Context.NOTIFICATION_SERVICE);
+                if (manager != null) {
+                    manager.cancel(NOTIFICATION_ID);
+                }
+            } catch (Throwable ignore) {
             }
         });
     }

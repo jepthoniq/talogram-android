@@ -147,19 +147,34 @@ public final class TalogramCallBroadcast {
             }
             return;
         }
-        String path = findLocalPath(currentAccount, message);
-        if (TextUtils.isEmpty(path)) {
-            showToast(context, R.string.JokerCallBroadcastDownloadFirst);
-            return;
-        }
         long messageId = message.getId();
         final boolean videoMessage = message.isVideo() || message.isRoundVideo();
         this.playingMessageId = messageId;
-        this.filePath = path;
+        this.filePath = null;
         this.videoPath = null;
         state = State.DECODING;
         Thread thread = new Thread(() -> {
             try {
+                String path = findLocalPath(currentAccount, message);
+                if (TextUtils.isEmpty(path)) {
+                    // The message is not downloaded yet: fetch it first, then
+                    // decode, instead of rejecting the broadcast.
+                    showToast(context, R.string.JokerCallBroadcastDownloading);
+                    path = downloadAndWait(currentAccount, message);
+                }
+                if (TextUtils.isEmpty(path)) {
+                    AndroidUtilities.runOnUIThread(() -> {
+                        showToast(context, R.string.JokerCallBroadcastDownloadFirst);
+                        stop();
+                    });
+                    return;
+                }
+                // A stop() or another message may have replaced this broadcast
+                // while the download or the decoder was running.
+                if (state != State.DECODING || playingMessageId != messageId) {
+                    return;
+                }
+                filePath = path;
                 byte[] decoded = decodeToPcmBytes(path);
                 if (decoded == null) {
                     AndroidUtilities.runOnUIThread(() -> {
@@ -330,6 +345,52 @@ public final class TalogramCallBroadcast {
         return null;
     }
 
+    // Starts the file download on the UI thread and waits for it (up to three
+    // minutes) before the decoder runs. Media messages opened from the selection
+    // mode are not always downloaded yet, and failing early would make the
+    // broadcast button look broken.
+    private String downloadAndWait(int currentAccount, MessageObject message) {
+        final org.telegram.tgnet.TLRPC.Document document = MessageObject.getDocument(message.messageOwner);
+        if (document == null) {
+            return null;
+        }
+        final FileLoader loader = FileLoader.getInstance(currentAccount);
+        final String attachFileName = FileLoader.getAttachFileName(document);
+        try {
+            AndroidUtilities.runOnUIThread(() -> {
+                try {
+                    loader.loadFile(document, message, FileLoader.PRIORITY_NORMAL, 0);
+                } catch (Throwable e) {
+                    FileLog.e(e);
+                }
+            });
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
+        for (int i = 0; i < 360; i++) {
+            File file = loader.getPathToMessage(message.messageOwner);
+            if (file != null && file.exists() && file.length() > 0) {
+                return file.getAbsolutePath();
+            }
+            if (i == 20 && !loader.isLoadingFile(attachFileName)) {
+                // Nothing is loading: retry the request once.
+                AndroidUtilities.runOnUIThread(() -> {
+                    try {
+                        loader.loadFile(document, message, FileLoader.PRIORITY_NORMAL, 0);
+                    } catch (Throwable e) {
+                        FileLog.e(e);
+                    }
+                });
+            }
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
     // Decodes media audio into 48kHz mono 16-bit PCM.
     private static byte[] decodeToPcmBytes(String path) {
         MediaExtractor extractor = null;
@@ -477,11 +538,18 @@ public final class TalogramCallBroadcast {
         return output;
     }
 
-    private static void showToast(Context context, int stringId) {
+    private static void showToast(final Context context, final int stringId) {
         if (context == null) {
             return;
         }
-        android.widget.Toast.makeText(context, LocaleController.getString(stringId), android.widget.Toast.LENGTH_LONG).show();
+        // toggle() runs its work on a background thread, and Toast must be
+        // created on the UI thread.
+        AndroidUtilities.runOnUIThread(() -> {
+            try {
+                android.widget.Toast.makeText(context, LocaleController.getString(stringId), android.widget.Toast.LENGTH_LONG).show();
+            } catch (Exception ignore) {
+            }
+        });
     }
 
     // A trivial growable byte accumulator (avoids pulling in a whole ByteArrayOutputStream clone)

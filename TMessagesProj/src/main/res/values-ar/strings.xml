@@ -1323,9 +1323,15 @@
     <string name="JokerCallBroadcastPlay">تشغيل في المكالمة</string>
     <string name="JokerCallBroadcastStop">إيقاف البث في الصوت</string>
     <string name="JokerCallBroadcastDownloadFirst">حمّل الوسائط أولاً، ثم اضغط مرة أخرى</string>
+    <string name="JokerCallBroadcastDownloading">جارٍ تنزيل الملف لبدء البث…</string>
     <string name="JokerCallBroadcastFailed">تعذر فك تشفير الصوت في هذه الوسائط</string>
     <string name="JokerCallBroadcastStarted">بدأ البث</string>
     <string name="JokerVoiceModelDownloading">جارٍ تنزيل نموذج التعرف على الكلام العربي (نحو 100 ميجابايت)…</string>
     <string name="JokerVoiceModelDownloadFailed">تعذر تنزيل نموذج التعرف على الكلام. حاول مرة أخرى.</string>
+    <string name="JokerVoiceModelReady">اكتمل تنزيل النموذج، جارٍ التحويل…</string>
+    <string name="JokerVoiceModelDownloadProgress">تنزيل نموذج التعرف على الكلام: %1$d%%</string>
+    <string name="JokerVoiceModelNotificationTitle">نموذج التعرف على الكلام العربي</string>
+    <string name="JokerVoiceModelNotificationChannel">تنزيلات نموذج التعرف على الكلام</string>
     <string name="JokerVoiceTranscriptionFailed">تعذر تحويل هذه الرسالة الصوتية على الجهاز. حاول مرة أخرى.</string>
+    <string name="JokerVoiceTranscriptionTimeout">استغرق التحويل وقتًا طويلًا. حاول مرة أخرى.</string>
 </resources>

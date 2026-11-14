@@ -34550,43 +34550,36 @@ public class ChatActivity extends BaseFragment implements
         }
     }
 
-    // Joker Mod: only group/channel chats with an audio/video file that is fully local can be
-    // broadcast into the voice chat.
+    // Joker Mod: any audio/video document in a group or channel can be broadcast
+    // into the voice chat. Files posted as plain documents (mp3, m4a, mp4, …)
+    // usually carry no audio/video attribute, only a file name, so the MIME type
+    // and the extension are checked as well. The media does not need to be
+    // downloaded first: TalogramCallBroadcast downloads it before decoding.
     private boolean canBroadcastToVoiceChat(MessageObject messageObject) {
-        if (currentChat == null) {
-            return false;
-        }
-        if (!(ChatObject.isChannelOrGiga(currentChat) || currentChat.broadcast)) {
-            return false;
-        }
-        if (isSecretChat()) {
+        if (currentChat == null || isSecretChat()) {
             return false;
         }
         if (messageObject == null || messageObject.messageOwner == null) {
             return false;
         }
-        boolean isVoice = MessageObject.isVoiceDocument(MessageObject.getDocument(messageObject.messageOwner));
-        boolean isVideo = MessageObject.isVideoDocument(MessageObject.getDocument(messageObject.messageOwner));
-        boolean isMusic = messageObject.messageOwner.media instanceof TLRPC.TL_messageMediaDocument
-                && org.telegram.messenger.MessageObject.isMusicDocument(((TLRPC.TL_messageMediaDocument) messageObject.messageOwner.media).document);
-        if (!(isVoice || isVideo || isMusic)) {
+        final TLRPC.Document document = MessageObject.getDocument(messageObject.messageOwner);
+        if (document == null) {
             return false;
         }
-        String attachPath = messageObject.messageOwner.attachPath;
-        File file = null;
-        if (!TextUtils.isEmpty(attachPath)) {
-            File f = new File(attachPath);
-            if (f.exists() && f.length() > 0) {
-                file = f;
-            }
+        if (MessageObject.isVoiceDocument(document) || MessageObject.isVideoDocument(document) || MessageObject.isMusicDocument(document)) {
+            return true;
         }
-        if (file == null) {
-            File f = FileLoader.getInstance(currentAccount).getPathToMessage(messageObject.messageOwner);
-            if (f != null && f.exists() && f.length() > 0) {
-                file = f;
-            }
+        final String mime = document.mime_type == null ? "" : document.mime_type.toLowerCase();
+        if (mime.startsWith("audio/") || mime.startsWith("video/")) {
+            return true;
         }
-        return file != null;
+        final String name = FileLoader.getDocumentFileName(document).toLowerCase();
+        return name.endsWith(".mp3") || name.endsWith(".m4a") || name.endsWith(".m4b")
+                || name.endsWith(".aac") || name.endsWith(".ogg") || name.endsWith(".oga")
+                || name.endsWith(".opus") || name.endsWith(".flac") || name.endsWith(".wav")
+                || name.endsWith(".wma") || name.endsWith(".amr") || name.endsWith(".3gp")
+                || name.endsWith(".mp4") || name.endsWith(".mkv") || name.endsWith(".webm")
+                || name.endsWith(".mov") || name.endsWith(".avi");
     }
 
     // Joker Mod: in multi-select mode the long-press popup is only shown for

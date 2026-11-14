@@ -10,6 +10,7 @@ import android.graphics.drawable.Drawable;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -69,10 +70,13 @@ public class ChatActivityActionsButtonsLayout extends LinearLayout {
         broadcastButton.button.setOnClickListener(v -> {});
         broadcastButton.direction = 0f;
         ScaleStateListAnimator.apply(broadcastButton.button, .065f, 2f);
-        addTextView(broadcastButton, LocaleController.getString(R.string.JokerCallBroadcastPlay), R.drawable.call, true, 12);
+        addTextView(broadcastButton, LocaleController.getString(R.string.JokerCallBroadcastPlay), R.drawable.call, true, 10);
+        if (broadcastButton.textView != null) {
+            broadcastButton.textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+        }
 
-        addTextView(replyButton, LocaleController.getString(R.string.Reply), R.drawable.input_reply, false, 21);
-        addTextView(forwardButton, LocaleController.getString(R.string.Forward), R.drawable.input_forward, true, 21);
+        addTextView(replyButton, LocaleController.getString(R.string.Reply), R.drawable.input_reply, false, 14);
+        addTextView(forwardButton, LocaleController.getString(R.string.Forward), R.drawable.input_forward, true, 14);
 
         setOrientation(HORIZONTAL);
         setClipChildren(false);
@@ -141,6 +145,18 @@ public class ChatActivityActionsButtonsLayout extends LinearLayout {
     }
 
     public void showBroadcastButton(boolean visible, boolean animated) {
+        // An INVISIBLE view still reserves width in a LinearLayout, so the
+        // middle button is collapsed to 0 when it is hidden; otherwise Reply and
+        // Forward would stay squeezed on every normal selection.
+        ViewGroup.LayoutParams params = broadcastButton.button.getLayoutParams();
+        if (params != null) {
+            int targetWidth = visible ? ViewGroup.LayoutParams.WRAP_CONTENT : 0;
+            if (params.width != targetWidth) {
+                params.width = targetWidth;
+                broadcastButton.button.setLayoutParams(params);
+                requestLayout();
+            }
+        }
         broadcastButton.visibilityAnimator.setValue(visible, animated);
     }
 
