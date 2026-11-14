@@ -195,6 +195,7 @@ public final class TalogramVoiceTranscriber {
             }
             try {
                 FileLog.e(TAG + ": loading the Vosk model");
+                toast(R.string.JokerVoiceModelLoading);
                 long started = SystemClock.elapsedRealtime();
                 result = new Model(getModelDir().getAbsolutePath());
                 model = result;
@@ -420,7 +421,15 @@ public final class TalogramVoiceTranscriber {
             ByteArrayOutputStream pending = new ByteArrayOutputStream(FEED_CHUNK_BYTES * 2);
             boolean inputDone = false;
             boolean outputDone = false;
+            // Some decoders never report END_OF_STREAM for a broken file. A
+            // deadline turns that into a normal failure instead of an endless
+            // loading spinner.
+            long durationUs = format.containsKey(MediaFormat.KEY_DURATION) ? format.getLong(MediaFormat.KEY_DURATION) : 0;
+            long deadline = SystemClock.elapsedRealtime() + Math.max(120000L, durationUs / 1000 * 3 + 60000L);
             while (!outputDone) {
+                if (SystemClock.elapsedRealtime() > deadline) {
+                    throw new IOException("audio decode timeout");
+                }
                 if (!inputDone) {
                     int inputIndex = codec.dequeueInputBuffer(10000);
                     if (inputIndex >= 0) {

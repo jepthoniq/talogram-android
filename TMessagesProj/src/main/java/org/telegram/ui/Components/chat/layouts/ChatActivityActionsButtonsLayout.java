@@ -84,6 +84,12 @@ public class ChatActivityActionsButtonsLayout extends LinearLayout {
         addView(replyButton.button, LayoutHelper.createLinear(0, 56, 1f, 1, 0, 0, 0));
         addView(broadcastButton.button, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, 56, Gravity.CENTER_VERTICAL, 4, 0, 4, 0));
         addView(forwardButton.button, LayoutHelper.createLinear(0, 56, 1f, 0, 0, 1, 0));
+
+        // Start collapsed: the button only exists for an eligible single selection.
+        ViewGroup.LayoutParams broadcastParams = broadcastButton.button.getLayoutParams();
+        broadcastParams.width = 0;
+        broadcastButton.button.setLayoutParams(broadcastParams);
+        broadcastButton.visibilityAnimator.setValue(false, false);
     }
 
     public void setReplyButtonOnClickListener(View.OnClickListener listener) {
@@ -203,7 +209,13 @@ public class ChatActivityActionsButtonsLayout extends LinearLayout {
 
     private void checkHolderPositionsAndVisibility(ButtonHolder holder) {
         final float visibility = totalVisibilityFactor * holder.visibilityAnimator.getFloatValue();
-        final float offsetY = -dp(54) * (1f - visibility);
+        // Reply/Forward slide in from their side; the broadcast button is
+        // centered but floats above their row instead of sitting between them.
+        // The row is 56dp tall, so -56 lands the broadcast pill exactly in the
+        // 56dp top padding reserved by ChatActivity.
+        final float offsetY = holder.direction == 0f
+                ? -dp(56) * visibility
+                : -dp(54) * (1f - visibility);
         final float offsetX = holder.direction == 0f ? 0f : getMeasuredWidth() / 2f * (1f - AnimatorUtils.DECELERATE_INTERPOLATOR.getInterpolation(visibility)) * holder.direction;
 
         holder.button.setTranslationX(offsetX);

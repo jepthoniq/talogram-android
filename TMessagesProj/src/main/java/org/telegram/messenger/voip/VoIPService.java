@@ -584,7 +584,18 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 		if (convertingVoip != null) {
 			convertingVoip.setMuteMicrophone(mute);
 		} else if (tgVoip[CAPTURE_DEVICE_CAMERA] != null) {
-			tgVoip[CAPTURE_DEVICE_CAMERA].setMuteMicrophone(mute);
+			if (TalogramCallBroadcast.isBroadcasting() && !mutedByAdmin()) {
+				// Joker Mod: a broadcast must stay audible while the microphone
+				// is muted, so keep the outgoing audio channel enabled and only
+				// zero the microphone samples in WebRtcAudioRecord.
+				TalogramCallBroadcast.setMicSilencedForBroadcast(mute);
+				tgVoip[CAPTURE_DEVICE_CAMERA].setMuteMicrophone(false);
+			} else {
+				tgVoip[CAPTURE_DEVICE_CAMERA].setMuteMicrophone(mute);
+				TalogramCallBroadcast.setMicSilencedForBroadcast(false);
+			}
+		} else {
+			TalogramCallBroadcast.setMicSilencedForBroadcast(false);
 		}
 		for (StateListener l : stateListeners) {
 			l.onAudioSettingsChanged();
@@ -2802,7 +2813,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 			l.onStateChanged(getCallState());
 		}
 		if (tgVoip[CAPTURE_DEVICE_CAMERA] != null) {
-			tgVoip[CAPTURE_DEVICE_CAMERA].setMuteMicrophone(micMute);
+			updateBroadcastMicRouting();
 		}
 	}
 
@@ -3458,9 +3469,9 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 				}
 				NativeInstance instance = tgVoip[CAPTURE_DEVICE_CAMERA];
 				if (instance != null) {
-					if (!micMute) {
-						instance.setMuteMicrophone(false);
-					}
+					// Joker Mod: keeps the send channel enabled for a broadcast
+					// while the microphone itself stays muted.
+					updateBroadcastMicRouting();
 				}
 				setParticipantsVolume();
 			}
@@ -3635,6 +3646,9 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 				}
 			}));
 			tgVoip[CAPTURE_DEVICE_CAMERA].setMuteMicrophone(micMute);
+			// Joker Mod: a new/reconnected group instance starts muted; keep the
+			// send channel enabled if a broadcast is currently playing.
+			updateBroadcastMicRouting();
 
 			if (newAvailable != isVideoAvailable) {
 				isVideoAvailable = newAvailable;
@@ -3887,6 +3901,26 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 
 	public boolean isMicMute() {
 		return micMute;
+	}
+
+	// Joker Mod: when a broadcast file is playing, tgcalls must keep the
+	// outgoing audio channel enabled even while the microphone is muted,
+	// otherwise its own mute implementation stops audio send entirely and the
+	// file is never heard. WebRtcAudioRecord zeroes the microphone samples
+	// separately through TalogramCallBroadcast.isMicSilencedForBroadcast().
+	public void updateBroadcastMicRouting() {
+		NativeInstance instance = tgVoip[CAPTURE_DEVICE_CAMERA];
+		if (instance == null) {
+			return;
+		}
+		final boolean keepSending = TalogramCallBroadcast.isBroadcasting() && !mutedByAdmin();
+		if (keepSending) {
+			TalogramCallBroadcast.setMicSilencedForBroadcast(micMute);
+			instance.setMuteMicrophone(false);
+		} else {
+			instance.setMuteMicrophone(micMute);
+			TalogramCallBroadcast.setMicSilencedForBroadcast(false);
+		}
 	}
 
 	public void toggleSpeakerphoneOrShowRouteSheet(Context context, boolean fromOverlayWindow) {

@@ -177,7 +177,7 @@ public class WebRtcAudioRecord {
           deviceBytesRead = 0;
         }
         if (bytesRead == byteBuffer.capacity()) {
-          if (microphoneMute) {
+          if (microphoneMute || TalogramCallBroadcast.isMicSilencedForBroadcast()) {
             byteBuffer.clear();
             byteBuffer.put(emptyBytes);
           }

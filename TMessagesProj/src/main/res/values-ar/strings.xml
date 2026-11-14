@@ -1329,6 +1329,7 @@
     <string name="JokerVoiceModelDownloading">جارٍ تنزيل نموذج التعرف على الكلام العربي (نحو 100 ميجابايت)…</string>
     <string name="JokerVoiceModelDownloadFailed">تعذر تنزيل نموذج التعرف على الكلام. حاول مرة أخرى.</string>
     <string name="JokerVoiceModelReady">اكتمل تنزيل النموذج، جارٍ التحويل…</string>
+    <string name="JokerVoiceModelLoading">جارٍ تجهيز نموذج التعرف على الكلام…</string>
     <string name="JokerVoiceModelDownloadProgress">تنزيل نموذج التعرف على الكلام: %1$d%%</string>
     <string name="JokerVoiceModelNotificationTitle">نموذج التعرف على الكلام العربي</string>
     <string name="JokerVoiceModelNotificationChannel">تنزيلات نموذج التعرف على الكلام</string>

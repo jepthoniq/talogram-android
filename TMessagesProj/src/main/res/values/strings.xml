@@ -11769,6 +11769,7 @@
     <string name="JokerVoiceModelDownloading">Downloading the Arabic speech recognition model (~100 MB)…</string>
     <string name="JokerVoiceModelDownloadFailed">Couldn\'t download the speech recognition model. Try again.</string>
     <string name="JokerVoiceModelReady">Speech model downloaded, transcribing…</string>
+    <string name="JokerVoiceModelLoading">Preparing the speech recognition model…</string>
     <string name="JokerVoiceModelDownloadProgress">Downloading speech recognition model: %1$d%%</string>
     <string name="JokerVoiceModelNotificationTitle">Arabic speech recognition model</string>
     <string name="JokerVoiceModelNotificationChannel">Speech model downloads</string>

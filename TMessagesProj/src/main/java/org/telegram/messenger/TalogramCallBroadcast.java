@@ -64,6 +64,12 @@ public final class TalogramCallBroadcast {
     // while this is set, so the audience sees the video as well.
     private volatile String videoPath;
 
+    // True while a broadcast is running and the user's microphone is muted:
+    // tgcalls keeps the outgoing audio channel enabled in that case, and
+    // WebRtcAudioRecord zeroes only the microphone samples so the file remains
+    // audible to the other participants.
+    private static volatile boolean micSilencedForBroadcast;
+
     private TalogramCallBroadcast() {
     }
 
@@ -101,6 +107,14 @@ public final class TalogramCallBroadcast {
         return INSTANCE.state == State.BROADCASTING && path != null && path.length() > 0;
     }
 
+    public static void setMicSilencedForBroadcast(boolean silenced) {
+        micSilencedForBroadcast = silenced;
+    }
+
+    public static boolean isMicSilencedForBroadcast() {
+        return micSilencedForBroadcast;
+    }
+
     // Called by the WebRTC audio device module when the call audio format is known.
     public static void setOutputFormat(int sampleRate, int channels) {
         if (channels > 0) {
@@ -125,14 +139,20 @@ public final class TalogramCallBroadcast {
         synchronized (this) {
             playoutQueue.clear();
         }
-        if (hadVideo) {
-            AndroidUtilities.runOnUIThread(() -> {
-                VoIPService service = VoIPService.getSharedInstance();
-                if (service != null) {
-                    service.stopVideoBroadcast();
-                }
-            });
-        }
+        // Restore the real microphone mute state. The silence flag is cleared by
+        // updateBroadcastMicRouting only after the transport is muted again, so
+        // the microphone cannot leak for a frame while the channel is closing.
+        AndroidUtilities.runOnUIThread(() -> {
+            VoIPService service = VoIPService.getSharedInstance();
+            if (service == null) {
+                setMicSilencedForBroadcast(false);
+                return;
+            }
+            service.updateBroadcastMicRouting();
+            if (hadVideo) {
+                service.stopVideoBroadcast();
+            }
+        });
     }
 
     // Called from the user's menu action. The joinVoiceChat callback is used to open the
@@ -220,7 +240,7 @@ public final class TalogramCallBroadcast {
     // wait until the service reports itself joined before enabling the video
     // capture. The broadcast can also end while we wait; the poll then dies.
     public void startVideoBroadcastWhenReady() {
-        if (!isVideoBroadcasting()) {
+        if (!isBroadcasting()) {
             return;
         }
         AndroidUtilities.runOnUIThread(new Runnable() {
@@ -228,12 +248,19 @@ public final class TalogramCallBroadcast {
 
             @Override
             public void run() {
-                if (!isVideoBroadcasting()) {
+                if (!isBroadcasting()) {
                     return;
                 }
                 VoIPService service = VoIPService.getSharedInstance();
-                if (service != null && service.isJoined() && service.startVideoBroadcast()) {
-                    return;
+                if (service != null && service.isJoined()) {
+                    // Joker Mod: while broadcasting, the outgoing audio channel
+                    // must stay enabled even if the microphone is muted.
+                    // Otherwise tgcalls disables audio send and the file is
+                    // never transmitted.
+                    service.updateBroadcastMicRouting();
+                    if (!isVideoBroadcasting() || service.startVideoBroadcast()) {
+                        return;
+                    }
                 }
                 if (++attempts < 100) {
                     AndroidUtilities.runOnUIThread(this, 300);

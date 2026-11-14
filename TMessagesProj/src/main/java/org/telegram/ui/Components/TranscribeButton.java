@@ -241,6 +241,12 @@ public class TranscribeButton {
                 }
                 transcribePressed(parent.getMessageObject(), toOpen, parent.getDelegate());
             }
+            // Never leave the button spinning when the press did not actually
+            // register an operation (for example an unsent message or a stored
+            // transcript that is simply reopened).
+            if (!isTranscribing(parent.getMessageObject())) {
+                setLoading(false, true);
+            }
         }
     }
 
@@ -846,7 +852,12 @@ public class TranscribeButton {
                 if (transcribeOperationsById == null) {
                     transcribeOperationsById = new HashMap<>();
                 }
-                transcribeOperationsById.put(id, messageObject);
+                // Joker Mod: an unofficial API id makes the server answer with
+                // transcription id 0. Storing that key would mark every voice
+                // message whose id is also 0 as "transcribing" forever.
+                if (id != 0) {
+                    transcribeOperationsById.put(id, messageObject);
+                }
                 messageObject.messageOwner.voiceTranscriptionId = id;
             } else {
                 if (err != null && err.text != null) {
