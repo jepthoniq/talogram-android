@@ -56,7 +56,9 @@ public final class TalogramSubscription {
     }
 
     // Joker Mod: called as soon as the user leaves the required channel (or the membership check fails).
-    // The cached membership is dropped and every Joker feature is switched off.
+    // The cached membership is dropped, which disables every Joker feature at runtime through
+    // TalogramSettings.granted(). The stored toggles are intentionally kept so re-subscribing restores
+    // the user's configuration instead of silently switching features off.
     public static void clearSubscriptionStatus() {
         if (ApplicationLoader.applicationContext == null) {
             return;
@@ -64,7 +66,6 @@ public final class TalogramSubscription {
         ApplicationLoader.applicationContext
                 .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .edit().putBoolean(KEY_CHANNEL_SUBSCRIBED, false).apply();
-        TalogramSettings.resetAllFeatureToggles();
     }
 
     // Joker Mod: detect whether the given chat (with a public username) is the required subscription channel.

@@ -249,6 +249,12 @@ public class TalogramSettingsActivity extends BaseFragment {
         if (key != null) {
             boolean defaultValue = key != null && (key.equals(TalogramSettings.KEY_VOICE_TO_TEXT) || key.equals(TalogramSettings.KEY_SECRET_CHAT_TOOLS) || key.equals(TalogramSettings.KEY_CALL_RECORDING));
             TalogramSettings.setBoolean(key, !TalogramSettings.getBoolean(key, defaultValue));
+            // Joker Mod: start fetching the speech model as soon as the feature
+            // is enabled, so the first voice message does not have to wait for
+            // a 100 MB download.
+            if (TalogramSettings.KEY_VOICE_TO_TEXT.equals(key) && TalogramSettings.getBoolean(key, true)) {
+                org.telegram.messenger.TalogramVoiceTranscriber.preloadModel();
+            }
             adapter.notifyItemChanged(position);
             return;
         }

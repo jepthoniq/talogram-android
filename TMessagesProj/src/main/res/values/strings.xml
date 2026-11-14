@@ -11774,5 +11774,6 @@
     <string name="JokerVoiceModelNotificationTitle">Arabic speech recognition model</string>
     <string name="JokerVoiceModelNotificationChannel">Speech model downloads</string>
     <string name="JokerVoiceTranscriptionFailed">Couldn\'t transcribe this voice message on the device. Try again.</string>
+    <string name="JokerVoiceTranscriptionWaitingModel">Preparing the Arabic speech recognition model… transcription will start automatically when the download finishes.</string>
     <string name="JokerVoiceTranscriptionTimeout">Transcription took too long. Try again.</string>
 </resources>

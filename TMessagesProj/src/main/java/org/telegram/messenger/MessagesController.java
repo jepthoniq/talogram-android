@@ -406,6 +406,10 @@ public class MessagesController extends BaseController implements NotificationCe
     private int statusRequest;
     private int statusSettingState;
     private boolean offlineSent;
+    // Joker Mod: true once the freeze-last-seen offline update has been sent for
+    // the current freeze session. While it is set, every presence update is
+    // suppressed until the setting is switched off again.
+    private boolean freezeLastSeenActive;
     private String uploadingAvatar;
     private final LongSparseArray<ArrayList<MessageObject>> welcomeMessages = new LongSparseArray<>();
 
@@ -6637,6 +6641,7 @@ public class MessagesController extends BaseController implements NotificationCe
         resetingDialogs = false;
         lastStatusUpdateTime = 0;
         offlineSent = false;
+        freezeLastSeenActive = false;
         registeringForPush = false;
         getDifferenceFirstSync = true;
         uploadingAvatar = null;
@@ -10572,8 +10577,45 @@ public class MessagesController extends BaseController implements NotificationCe
                 });
             }
             if (TalogramSettings.isFreezeLastSeen()) {
-                // Talogram mod: presence updates frozen
+                // Joker Mod: simply skipping the timer left the account "online"
+                // forever because the previous online update stayed in effect.
+                // Pin one offline status the first time the freeze becomes
+                // active, then suppress every later online/offline update so the
+                // last seen time no longer changes while the setting is on.
+                if (!freezeLastSeenActive) {
+                    freezeLastSeenActive = true;
+                    if (statusRequest != 0) {
+                        getConnectionsManager().cancelRequest(statusRequest, true);
+                        statusRequest = 0;
+                    }
+                    // Only pin when this session actually told the server it is
+                    // online. At a cold start nothing was sent yet, so the last
+                    // seen time from the previous freeze stays untouched.
+                    if (!ignoreSetOnline && lastStatusUpdateTime != 0 && !offlineSent) {
+                        statusSettingState = 2;
+                        TL_account.updateStatus req = new TL_account.updateStatus();
+                        req.offline = true;
+                        statusRequest = getConnectionsManager().sendRequest(req, (response, error) -> {
+                            if (error == null) {
+                                offlineSent = true;
+                            }
+                            statusRequest = 0;
+                        });
+                    }
+                }
             } else if (!ignoreSetOnline && getConnectionsManager().getPauseTime() == 0 && ApplicationLoader.isScreenOn && !ApplicationLoader.mainInterfacePausedStageQueue) {
+                if (freezeLastSeenActive) {
+                    // The freeze was just switched off: allow an online update
+                    // immediately instead of waiting for the next 55s window.
+                    freezeLastSeenActive = false;
+                    if (statusRequest != 0) {
+                        getConnectionsManager().cancelRequest(statusRequest, true);
+                        statusRequest = 0;
+                    }
+                    statusSettingState = 0;
+                    lastStatusUpdateTime = 0;
+                    offlineSent = false;
+                }
                 if (ApplicationLoader.mainInterfacePausedStageQueueTime != 0 && Math.abs(ApplicationLoader.mainInterfacePausedStageQueueTime - System.currentTimeMillis()) > 1000) {
                     if (statusSettingState != 1 && (lastStatusUpdateTime == 0 || Math.abs(System.currentTimeMillis() - lastStatusUpdateTime) >= 55000 || offlineSent)) {
                         statusSettingState = 1;

@@ -698,7 +698,14 @@ public class TranscribeButton {
                     NotificationCenter.getInstance(account).postNotificationName(NotificationCenter.voiceTranscriptionUpdate, messageObject, null, null, (Boolean) true, (Boolean) true);
                 });
             } else if (org.telegram.messenger.TalogramSettings.isVoiceToText() && org.telegram.messenger.TalogramVoiceTranscriber.isSupported()) {
-                transcribeLocally(messageObject, delegate);
+                if (org.telegram.messenger.TalogramVoiceTranscriber.isModelReady()) {
+                    transcribeLocally(messageObject, delegate);
+                } else {
+                    // Joker Mod: the first use downloads ~100 MB. Do not keep
+                    // the A button spinning for that; transcribe automatically
+                    // as soon as the model is ready.
+                    prepareModelAndTranscribe(messageObject, delegate);
+                }
             } else {
                 requestServerTranscription(messageObject, delegate);
             }
@@ -714,6 +721,70 @@ public class TranscribeButton {
         }
     }
 
+    // Joker Mod: the first transcription needs the ~100 MB Arabic Vosk model.
+    // Keep that download independent from the A button: show one short message
+    // and start the transcription automatically when the model is ready, so the
+    // button can never appear stuck while the archive downloads.
+    private static HashMap<Integer, Boolean> pendingModelTranscriptions;
+
+    private static void prepareModelAndTranscribe(final MessageObject messageObject, final ChatMessageCell.ChatMessageCellDelegate delegate) {
+        final int account = messageObject.currentAccount;
+        final int key = reqInfoHash(messageObject);
+        if (pendingModelTranscriptions == null) {
+            pendingModelTranscriptions = new HashMap<>();
+        }
+        if (pendingModelTranscriptions.containsKey(key)) {
+            org.telegram.messenger.TalogramVoiceTranscriber.preloadModel();
+            return;
+        }
+        pendingModelTranscriptions.put(key, true);
+        org.telegram.messenger.TalogramVoiceTranscriber.preloadModel();
+        AndroidUtilities.runOnUIThread(() -> {
+            try {
+                android.widget.Toast.makeText(org.telegram.messenger.ApplicationLoader.applicationContext, R.string.JokerVoiceTranscriptionWaitingModel, android.widget.Toast.LENGTH_LONG).show();
+            } catch (Exception ignore) {
+            }
+        });
+        AndroidUtilities.runOnUIThread(new Runnable() {
+            private int checks;
+
+            @Override
+            public void run() {
+                if (pendingModelTranscriptions == null || !pendingModelTranscriptions.containsKey(key)) {
+                    return;
+                }
+                if (org.telegram.messenger.TalogramVoiceTranscriber.isModelReady()) {
+                    pendingModelTranscriptions.remove(key);
+                    transcribeLocally(messageObject, delegate);
+                    return;
+                }
+                if (!org.telegram.messenger.TalogramVoiceTranscriber.isModelDownloading()) {
+                    pendingModelTranscriptions.remove(key);
+                    FileLog.e("TalogramVoiceTranscriber: model preparation failed, msg_id=" + messageObject.getId());
+                    AndroidUtilities.runOnUIThread(() -> {
+                        try {
+                            android.widget.Toast.makeText(org.telegram.messenger.ApplicationLoader.applicationContext, R.string.JokerVoiceModelDownloadFailed, android.widget.Toast.LENGTH_LONG).show();
+                        } catch (Exception ignore) {
+                        }
+                    });
+                    NotificationCenter.getInstance(account).postNotificationName(NotificationCenter.voiceTranscriptionUpdate, messageObject);
+                    return;
+                }
+                if (++checks < 450) {
+                    AndroidUtilities.runOnUIThread(this, 2000);
+                } else {
+                    pendingModelTranscriptions.remove(key);
+                    AndroidUtilities.runOnUIThread(() -> {
+                        try {
+                            android.widget.Toast.makeText(org.telegram.messenger.ApplicationLoader.applicationContext, R.string.JokerVoiceTranscriptionTimeout, android.widget.Toast.LENGTH_LONG).show();
+                        } catch (Exception ignore) {
+                        }
+                    });
+                }
+            }
+        }, 1500);
+    }
+
     // Joker Mod: local, offline voice-to-text using the Arabic Vosk model. The
     // model is downloaded on first use. If anything fails (no model, unsupported
     // audio) the regular server request is used instead, so Premium/trial users
@@ -726,6 +797,9 @@ public class TranscribeButton {
             transcribeOperationsByDialogPosition = new HashMap<>();
         }
         transcribeOperationsByDialogPosition.put((Integer) reqInfoHash(messageObject), messageObject);
+        // Let the cell show the progress ring when the transcription starts on
+        // its own after the model download, not only when the user tapped A.
+        AndroidUtilities.runOnUIThread(() -> NotificationCenter.getInstance(account).postNotificationName(NotificationCenter.voiceTranscriptionUpdate, messageObject));
         FileLog.e("TalogramVoiceTranscriber: starting local transcription, msg_id=" + messageId);
         org.telegram.messenger.TalogramVoiceTranscriber.transcribe(messageObject, new org.telegram.messenger.TalogramVoiceTranscriber.Callback() {
             @Override

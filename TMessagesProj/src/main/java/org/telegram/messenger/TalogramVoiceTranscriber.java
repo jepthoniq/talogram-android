@@ -64,6 +64,10 @@ public final class TalogramVoiceTranscriber {
     private static final Object MODEL_LOCK = new Object();
     private static volatile Model model;
     private static volatile boolean downloading;
+    // True from the moment a background preparation starts until its thread
+    // finishes; the UI uses it to tell "still fetching the model" apart from
+    // "preparation failed".
+    private static volatile boolean preparing;
     private static volatile int lastToastPercent = -100;
     private static Toast progressToast;
 
@@ -94,6 +98,34 @@ public final class TalogramVoiceTranscriber {
     public static boolean isModelReady() {
         File dir = getModelDir();
         return new File(dir, "am/final.mdl").exists() || new File(dir, "conf/model.conf").exists();
+    }
+
+    public static boolean isModelDownloading() {
+        return downloading || preparing;
+    }
+
+    // Joker Mod: fetch the model in the background without tying a voice
+    // message (and its A button) to the download. The button uses this so it
+    // never spins for minutes over the ~100 MB archive.
+    public static void preloadModel() {
+        if (isModelReady() || preparing || downloading) {
+            return;
+        }
+        synchronized (MODEL_LOCK) {
+            if (isModelReady() || preparing || downloading) {
+                return;
+            }
+            preparing = true;
+        }
+        new Thread(() -> {
+            Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);
+            FileLog.e(TAG + ": preloading the Vosk model");
+            try {
+                getModel();
+            } finally {
+                preparing = false;
+            }
+        }, "TalogramVoskModelPreload").start();
     }
 
     private static File getModelDir() {
@@ -203,7 +235,12 @@ public final class TalogramVoiceTranscriber {
             } catch (Throwable e) {
                 FileLog.e(TAG + ": can't load Vosk model", e);
                 // A broken model directory should be downloaded again next time.
-                deleteRecursive(getModelDir());
+                // A missing native library is not the model's fault: keep the
+                // 100 MB archive extraction instead of forcing a new download on
+                // every attempt.
+                if (!(e instanceof LinkageError)) {
+                    deleteRecursive(getModelDir());
+                }
                 return null;
             }
             return result;

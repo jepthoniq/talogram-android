@@ -1334,5 +1334,6 @@
     <string name="JokerVoiceModelNotificationTitle">نموذج التعرف على الكلام العربي</string>
     <string name="JokerVoiceModelNotificationChannel">تنزيلات نموذج التعرف على الكلام</string>
     <string name="JokerVoiceTranscriptionFailed">تعذر تحويل هذه الرسالة الصوتية على الجهاز. حاول مرة أخرى.</string>
+    <string name="JokerVoiceTranscriptionWaitingModel">جارٍ تجهيز نموذج التعرف على الكلام العربي… سيبدأ التحويل تلقائيًا عند اكتمال التنزيل.</string>
     <string name="JokerVoiceTranscriptionTimeout">استغرق التحويل وقتًا طويلًا. حاول مرة أخرى.</string>
 </resources>
